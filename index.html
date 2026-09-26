@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Defter | YKS Deneme Takip</title>
+
+<!-- Favicon (SVG) -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%233b82f6'><path d='M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z'/></svg>">
+
+<!-- Google Fonts: Plus Jakarta Sans -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+
+<!-- Chart.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ANA SAYFA (LANDING) -->
+<div id="landingPage" class="landing-page">
+  <header class="landing-nav">
+    <div class="landing-nav__brand">
+      <div class="brand-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+      </div>
+      <span>Defter</span>
+    </div>
+    <button type="button" id="landingTopLoginBtn" class="btn-neo btn-neo--accent">Giriş Yap</button>
+  </header>
+
+  <section class="landing-hero">
+    <div class="hero-card">
+      <span class="hero-card__badge">YKS 2026 Hazırlık</span>
+      <h1 class="hero-card__title">Netlerini tesadüfe bırakma, noktasal analiz et.</h1>
+      <p class="hero-card__sub">
+        TYT ve AYT deneme sonuçlarını ders ve konu detaylarıyla kaydet.
+        Gelişim grafiğini izle, sürekli takıldığın konuları anında tespit et.
+      </p>
+      <button type="button" id="landingHeroLoginBtn" class="btn-neo btn-neo--primary btn-neo--lg">Hemen Başla</button>
+    </div>
+  </section>
+
+  <!-- YENİ EKLENEN FOOTER NAVBAR -->
+  <footer class="landing-footer">
+    <div class="landing-footer__content">
+      <div class="landing-footer__brand">
+        <div class="brand-icon brand-icon--sm">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+        </div>
+        <span>Defter</span>
+      </div>
+      <div class="landing-footer__copy">
+        &copy; 2026 Muhammet Furkan Tunçez. Tüm hakları saklıdır.
+      </div>
+      <button type="button" id="landingFooterLoginBtn" class="btn-neo btn-neo--sm btn-neo--primary">Giriş Yap</button>
+    </div>
+  </footer>
+</div>
+
+<!-- AUTH OVERLAY -->
+<div id="authOverlay" class="auth-overlay" hidden>
+  <div class="auth-card">
+    <button type="button" id="authBackToLanding" class="auth-back-link">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+      Ana Sayfaya Dön
+    </button>
+
+    <div class="brand-mark">
+      <div class="brand-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+      </div>
+      <span>Defter</span>
+    </div>
+
+    <div class="auth-tabs" role="tablist">
+      <button type="button" class="auth-tab is-active" id="authTabLogin" role="tab">Giriş Yap</button>
+      <button type="button" class="auth-tab" id="authTabRegister" role="tab">Kayıt Ol</button>
+    </div>
+
+    <p id="authError" class="auth-error" hidden></p>
+
+    <!-- Giriş Formu -->
+    <form id="loginForm" class="auth-form" novalidate>
+      <div class="field-group">
+        <label>E-posta Adresi</label>
+        <input type="email" id="loginEmail" required placeholder="ornek@mail.com">
+      </div>
+      <div class="field-group">
+        <label>Şifre</label>
+        <input type="password" id="loginPassword" required placeholder="••••••••">
+      </div>
+      <button type="submit" class="btn-neo btn-neo--primary btn-neo--full">Giriş Yap</button>
+    </form>
+
+    <!-- Kayıt Formu -->
+    <form id="registerForm" class="auth-form" hidden novalidate>
+      <div class="field-group">
+        <label>Ad Soyad</label>
+        <input type="text" id="registerName" required placeholder="Adın Soyadın">
+      </div>
+      <div class="field-group">
+        <label>E-posta Adresi</label>
+        <input type="email" id="registerEmail" required placeholder="ornek@mail.com">
+      </div>
+      <div class="field-group">
+        <label>Şifre</label>
+        <input type="password" id="registerPassword" required minlength="6" placeholder="En az 6 karakter">
+      </div>
+      <div class="field-group">
+        <label>Hedef Alanın</label>
+        <div class="select-wrapper">
+          <select id="registerAlan" required>
+            <option value="sayisal">Sayısal</option>
+            <option value="ea">Eşit Ağırlık</option>
+            <option value="sozel">Sözel</option>
+            <option value="dil">Dil</option>
+          </select>
+        </div>
+      </div>
+      <button type="submit" class="btn-neo btn-neo--primary btn-neo--full">Hesap Oluştur</button>
+    </form>
+  </div>
+</div>
+
+<!-- UYGULAMA KABUĞU -->
+<div id="appShell" class="app-shell" hidden>
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <div class="topbar__brand">
+      <div class="brand-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+      </div>
+      <span class="topbar__title">Defter</span>
+    </div>
+    <div class="topbar__user">
+      <div class="user-badge">
+        <span class="user-badge__avatar" id="userAvatarInitial">Ö</span>
+        <div class="user-badge__info">
+          <span id="userDisplayName" class="user-badge__name">Öğrenci</span>
+          <span id="userDisplayAlan" class="user-badge__alan">Sayısal</span>
+        </div>
+      </div>
+      <button id="logoutBtn" class="btn-neo btn-neo--icon" title="Çıkış Yap">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="app-body">
+    <!-- SOL MENÜ -->
+    <nav class="sidebar">
+      <button class="sidebar__btn is-active" data-view="dashboard">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Genel Bakış
+      </button>
+      <button class="sidebar__btn" data-view="new-entry">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+        Yeni Deneme
+      </button>
+      <button class="sidebar__btn" data-view="analiz">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+        Analiz
+      </button>
+      <button class="sidebar__btn" data-view="history">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Deneme Geçmişi
+      </button>
+    </nav>
+
+    <!-- İÇERİK ALANI -->
+    <main class="content">
+      <!-- GÖRÜNÜM: GENEL BAKIŞ -->
+      <section id="view-dashboard" class="view is-active">
+        <div class="stat-grid">
+          <div class="stat-card">
+            <span class="stat-card__title">TYT Genel Ortalaman</span>
+            <span class="stat-card__value" id="statTytAvg">0.00</span>
+            <span class="stat-card__sub">Tüm TYT denemeleri</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-card__title">AYT Genel Ortalaman</span>
+            <span class="stat-card__value" id="statAytAvg">0.00</span>
+            <span class="stat-card__sub">Tüm AYT denemeleri</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-card__title">TYT En Yüksek Netin</span>
+            <span class="stat-card__value stat-card__value--highlight" id="statTytMax">0.00</span>
+            <span class="stat-card__sub" id="statTytMaxName">—</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-card__title">AYT En Yüksek Netin</span>
+            <span class="stat-card__value stat-card__value--highlight" id="statAytMax">0.00</span>
+            <span class="stat-card__sub" id="statAytMaxName">—</span>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel__header">
+            <h2>Net Değişim Grafiği</h2>
+            <div class="select-wrapper select-wrapper--sm" style="width: 200px;">
+              <select id="chartTypeFilter">
+                <option value="TYT">TYT Netleri</option>
+                <option value="AYT">AYT Netleri</option>
+              </select>
+            </div>
+          </div>
+          <div class="chart-box">
+            <canvas id="netTrendChart" height="100"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <!-- GÖRÜNÜM: YENİ DENEME -->
+      <section id="view-new-entry" class="view">
+        <div class="entry-toggle">
+          <button type="button" class="entry-toggle__btn is-active" id="entryTabManual">Manuel Giriş</button>
+          <button type="button" class="entry-toggle__btn" id="entryTabPdf">PDF ile Otomatik Oku <span class="badge-pill">Yakında!</span></button>
+        </div>
+
+        <!-- MANUEL GİRİŞ FORMU -->
+        <form id="manualEntryForm" class="panel entry-panel">
+          <div class="panel__header">
+            <h2>Deneme Bilgileri</h2>
+          </div>
+
+          <div class="form-row">
+            <div class="field-group">
+              <label>Deneme Adı</label>
+              <input type="text" id="entryName" required placeholder="Örn: 3D Yayınları TYT Sınavı 3">
+            </div>
+            <div class="field-group">
+              <label>Tarih</label>
+              <input type="date" id="entryDate" required>
+            </div>
+            <div class="field-group">
+              <label>Sınav Türü</label>
+              <div class="select-wrapper">
+                <select id="entryType" required>
+                  <option value="TYT">TYT</option>
+                  <option value="AYT">AYT</option>
+                </select>
+              </div>
+            </div>
+            <div class="field-group" id="entryAlanField" hidden>
+              <label>AYT Alanı</label>
+              <div class="select-wrapper">
+                <select id="entryAlan">
+                  <option value="sayisal">Sayısal</option>
+                  <option value="ea" disabled>Eşit Ağırlık (Yakında!)</option>
+                  <option value="sozel" disabled>Sözel (Yakında!)</option>
+                  <option value="dil" disabled>Dil (Yakında!)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel__header panel__header--sub">
+            <h3>Ders Netleri ve Konu Detayları</h3>
+          </div>
+
+          <!-- Dinamik ders alanları JS tarafından basılır -->
+          <div id="dynamicSubjectContainer" class="subject-sections"></div>
+
+          <!-- Genel Toplam Özeti -->
+          <div class="total-summary-card">
+            <div class="summary-item">
+              <span>Toplam Doğru</span>
+              <strong id="grandTotalDogru">0</strong>
+            </div>
+            <div class="summary-item">
+              <span>Toplam Yanlış</span>
+              <strong id="grandTotalYanlis">0</strong>
+            </div>
+            <div class="summary-item">
+              <span>Toplam Boş</span>
+              <strong id="grandTotalBos">0</strong>
+            </div>
+            <div class="summary-item summary-item--highlight">
+              <span>Toplam Sınav Neti</span>
+              <strong id="grandTotalNet">0.00</strong>
+            </div>
+          </div>
+
+          <button type="submit" class="btn-neo btn-neo--primary btn-neo--full btn-neo--lg">Denemeyi Kaydet</button>
+        </form>
+
+        <!-- PDF PANELİ (YAKINDA OVERLAY) -->
+        <div id="pdfEntryPanel" class="panel entry-panel" hidden>
+          <div class="coming-soon-box">
+            <div class="coming-soon-icon">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            </div>
+            <h3>PDF Karne İnceleme Yakında Sizlerle!</h3>
+            <p>Deneme sonuç karnenizi PDF olarak yükleyip yapay zeka ile otomatik okutma özelliği çok yakında aktif olacak. Şimdilik Manuel Giriş sekmesini kullanabilirsiniz.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- GÖRÜNÜM: ANALİZ (Yapay zeka içermez — tüm hesaplar site tarafından yapılır) -->
+      <section id="view-analiz" class="view">
+        <div class="panel">
+          <div class="panel__header">
+            <h2>Genel Analiz</h2>
+          </div>
+          <div class="genel-analiz-grid">
+            <div class="genel-analiz-block" id="genelAnalizTyt">
+              <h3 class="genel-analiz-block__title">TYT</h3>
+              <div class="genel-analiz-block__body">
+                <p class="empty-text">Daha önce TYT denemesi eklenmemiş.</p>
+              </div>
+            </div>
+            <div class="genel-analiz-block" id="genelAnalizAyt">
+              <h3 class="genel-analiz-block__title">AYT (Sayısal)</h3>
+              <div class="genel-analiz-block__body">
+                <p class="empty-text">Daha önce AYT denemesi eklenmemiş.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel__header">
+            <h2>Ders Bazlı Analiz</h2>
+            <div class="select-wrapper select-wrapper--sm" style="width: 160px;">
+              <select id="dersAnalizTurFilter">
+                <option value="TYT">TYT</option>
+                <option value="AYT">AYT</option>
+              </select>
+            </div>
+          </div>
+          <div id="dersBazliAnalizContainer" class="ders-analiz-container">
+            <p class="empty-text">Daha önce TYT denemesi eklenmemiş.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- GÖRÜNÜM: DENEME GEÇMİŞİ -->
+      <section id="view-history" class="view">
+        <div class="panel">
+          <div class="panel__header">
+            <h2>Kayıtlı Tüm Denemeler (Detay için satıra tıkla)</h2>
+          </div>
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Tarih</th>
+                  <th>Deneme Adı</th>
+                  <th>Tür</th>
+                  <th>D / Y / B</th>
+                  <th>Toplam Net</th>
+                  <th>İşlem</th>
+                </tr>
+              </thead>
+              <tbody id="historyTableBody">
+                <tr><td colspan="6" class="empty-text">Henüz kaydedilmiş deneme bulunmuyor.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<div id="toastStack" class="toast-stack"></div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
