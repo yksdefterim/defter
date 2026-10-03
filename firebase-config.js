@@ -11,6 +11,7 @@ import {
   signOut,
   onAuthStateChanged,
   updateProfile,
+  updatePassword,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import {
   getFirestore,
@@ -53,6 +54,15 @@ export async function loginUser(email, password) {
 
 export function logoutUser() {
   return signOut(auth);
+}
+
+// E-posta + eski şifre ile yeniden kimlik doğrulama yapıp şifreyi
+// günceller. signInWithEmailAndPassword önceden oturum açmayı
+// gerektirmez; bu sayede "Şifremi Unuttum" ekranından da çalışır.
+export async function changeUserPassword(email, oldPassword, newPassword) {
+  const credential = await signInWithEmailAndPassword(auth, email, oldPassword);
+  await updatePassword(credential.user, newPassword);
+  return credential.user;
 }
 
 export function watchAuthState(callback) {
