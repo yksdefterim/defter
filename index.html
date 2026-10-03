@@ -76,7 +76,7 @@
       <span>Defter</span>
     </div>
 
-    <div class="auth-tabs" role="tablist">
+    <div class="auth-tabs" role="tablist" id="authTabsRow">
       <button type="button" class="auth-tab is-active" id="authTabLogin" role="tab">Giriş Yap</button>
       <button type="button" class="auth-tab" id="authTabRegister" role="tab">Kayıt Ol</button>
     </div>
@@ -94,6 +94,7 @@
         <input type="password" id="loginPassword" required placeholder="••••••••">
       </div>
       <button type="submit" class="btn-neo btn-neo--primary btn-neo--full">Giriş Yap</button>
+      <button type="button" id="forgotPasswordLink" class="auth-forgot-link">Şifremi Unuttum?</button>
     </form>
 
     <!-- Kayıt Formu -->
@@ -123,6 +124,31 @@
       </div>
       <button type="submit" class="btn-neo btn-neo--primary btn-neo--full">Hesap Oluştur</button>
     </form>
+
+    <!-- Şifremi Unuttum / Şifre Değiştirme Formu -->
+    <form id="forgotPasswordForm" class="auth-form" hidden novalidate>
+      <button type="button" id="forgotBackToLogin" class="auth-back-link">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        Giriş Ekranına Dön
+      </button>
+      <div class="field-group">
+        <label>E-posta Adresi</label>
+        <input type="email" id="forgotEmail" required placeholder="ornek@mail.com">
+      </div>
+      <div class="field-group">
+        <label>Eski Şifre</label>
+        <input type="password" id="forgotOldPassword" required placeholder="••••••••">
+      </div>
+      <div class="field-group">
+        <label>Yeni Şifre</label>
+        <input type="password" id="forgotNewPassword" required minlength="6" placeholder="En az 6 karakter">
+      </div>
+      <div class="field-group">
+        <label>Yeni Şifre (Tekrar)</label>
+        <input type="password" id="forgotNewPasswordConfirm" required minlength="6" placeholder="Yeni şifreni tekrar gir">
+      </div>
+      <button type="submit" class="btn-neo btn-neo--primary btn-neo--full">Şifreyi Değiştir</button>
+    </form>
   </div>
 </div>
 
@@ -131,6 +157,9 @@
   <!-- TOPBAR -->
   <header class="topbar">
     <div class="topbar__brand">
+      <button type="button" id="mobileMenuBtn" class="hamburger-btn" aria-label="Menüyü aç">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
       <div class="brand-icon">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
       </div>
@@ -170,6 +199,8 @@
         Deneme Geçmişi
       </button>
     </nav>
+
+    <div id="sidebarBackdrop" class="sidebar-backdrop"></div>
 
     <!-- İÇERİK ALANI -->
     <main class="content">
