@@ -3,7 +3,7 @@
 // ============================================================
 
 import {
-  auth, registerUser, loginUser, logoutUser, watchAuthState,
+  auth, registerUser, loginUser, logoutUser, watchAuthState, changeUserPassword,
   addDeneme, deleteDeneme, watchDenemeler,
 } from "./firebase-config.js";
 
@@ -118,6 +118,8 @@ function showToast(message, type = "info", duration = 4000) {
 ------------------------------------------------------------- */
 function switchAuthTab(target) {
   const isLogin = target === "login";
+  el("authTabsRow").hidden = false;
+  el("forgotPasswordForm").hidden = true;
   el("authTabLogin").classList.toggle("is-active", isLogin);
   el("authTabRegister").classList.toggle("is-active", !isLogin);
   el("loginForm").hidden = !isLogin;
@@ -148,6 +150,50 @@ el("registerForm").addEventListener("submit", async (e) => {
     showToast("Kayıt olma başarılı.", "success", 500);
   } catch (err) {
     el("authError").textContent = "Kayıt olunamadı: " + err.message;
+    el("authError").hidden = false;
+  }
+});
+
+/* ------------------------------------------------------------
+   ŞİFREMİ UNUTTUM / ŞİFRE DEĞİŞTİRME
+   (E-posta + eski şifre ile yeniden kimlik doğrulama yapıp
+   şifreyi güncelliyoruz; bu akış için Firebase'de oturumun
+   önceden açık olması gerekmiyor.)
+------------------------------------------------------------- */
+function showForgotPasswordForm() {
+  el("authTabsRow").hidden = true;
+  el("loginForm").hidden = true;
+  el("registerForm").hidden = true;
+  el("forgotPasswordForm").hidden = false;
+  el("authError").hidden = true;
+}
+
+el("forgotPasswordLink").addEventListener("click", showForgotPasswordForm);
+el("forgotBackToLogin").addEventListener("click", () => switchAuthTab("login"));
+
+el("forgotPasswordForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const email = el("forgotEmail").value.trim();
+  const oldPassword = el("forgotOldPassword").value;
+  const newPassword = el("forgotNewPassword").value;
+  const newPasswordConfirm = el("forgotNewPasswordConfirm").value;
+
+  if (newPassword !== newPasswordConfirm) {
+    el("authError").hidden = true;
+    el("forgotPasswordForm").hidden = false;
+    el("authTabsRow").hidden = true;
+    el("authError").textContent = "Yeni şifreler birbiriyle eşleşmiyor.";
+    el("authError").hidden = false;
+    return;
+  }
+
+  try {
+    await changeUserPassword(email, oldPassword, newPassword);
+    showToast("Şifreniz başarıyla değiştirildi.", "success");
+    el("forgotPasswordForm").reset();
+    switchAuthTab("login");
+  } catch (err) {
+    el("authError").textContent = "Şifre değiştirilemedi. E-posta veya eski şifreyi kontrol edin.";
     el("authError").hidden = false;
   }
 });
@@ -192,14 +238,30 @@ watchAuthState((user) => {
 });
 
 /* ------------------------------------------------------------
-   MENÜ GEÇİŞLERİ
+   MENÜ GEÇİŞLERİ (+ Mobil Hamburger Menü)
 ------------------------------------------------------------- */
+const sidebarNavEl = document.querySelector(".sidebar");
+const sidebarBackdropEl = el("sidebarBackdrop");
+const mobileMenuBtnEl = el("mobileMenuBtn");
+
+function closeMobileMenu() {
+  if (sidebarNavEl) sidebarNavEl.classList.remove("is-open");
+  if (sidebarBackdropEl) sidebarBackdropEl.classList.remove("is-visible");
+}
+function toggleMobileMenu() {
+  if (sidebarNavEl) sidebarNavEl.classList.toggle("is-open");
+  if (sidebarBackdropEl) sidebarBackdropEl.classList.toggle("is-visible");
+}
+if (mobileMenuBtnEl) mobileMenuBtnEl.addEventListener("click", toggleMobileMenu);
+if (sidebarBackdropEl) sidebarBackdropEl.addEventListener("click", closeMobileMenu);
+
 document.querySelectorAll(".sidebar__btn").forEach((btn) => {
   btn.addEventListener("click", () => {
     document.querySelectorAll(".sidebar__btn").forEach((b) => b.classList.remove("is-active"));
     document.querySelectorAll(".view").forEach((v) => v.classList.remove("is-active"));
     btn.classList.add("is-active");
     el(`view-${btn.dataset.view}`).classList.add("is-active");
+    closeMobileMenu();
   });
 });
 
@@ -562,8 +624,44 @@ function renderChart() {
 }
 
 /* ------------------------------------------------------------
-   GEÇMİŞ TABLOSU
+   GEÇMİŞ TABLOSU — KONU YAPISI (Türkçe > Yanlış/Boş,
+   Matematik > Matematik/Geometri > Yanlış/Boş,
+   Fen > Fizik/Kimya/Biyoloji > Yanlış/Boş. Sosyal'da konu
+   girişi olmadığı için hiç listelenmiyor.)
 ------------------------------------------------------------- */
+const TYT_KONU_YAPISI = [
+  { ders: "turkce", label: "Türkçe", altlar: [{ altDers: null, label: null }] },
+  { ders: "matematik", label: "Matematik", altlar: [{ altDers: "matematikSub", label: "Matematik" }, { altDers: "geometri", label: "Geometri" }] },
+  { ders: "fen", label: "Fen Bilimleri", altlar: [{ altDers: "fizik", label: "Fizik" }, { altDers: "kimya", label: "Kimya" }, { altDers: "biyoloji", label: "Biyoloji" }] },
+];
+const AYT_KONU_YAPISI = [
+  { ders: "matematik", label: "Matematik", altlar: [{ altDers: "matematikSub", label: "Matematik" }, { altDers: "geometri", label: "Geometri" }] },
+  { ders: "fen", label: "Fen Bilimleri", altlar: [{ altDers: "fizik", label: "Fizik" }, { altDers: "kimya", label: "Kimya" }, { altDers: "biyoloji", label: "Biyoloji" }] },
+];
+
+function renderKonuYapisiHtml(konularList, yapi) {
+  return yapi.map((dersDef) => {
+    const altlarHtml = dersDef.altlar.map((alt) => {
+      const wrongItems = konularList.filter(k => k.ders === dersDef.ders && (!alt.altDers || k.altDers === alt.altDers) && k.tip === "yanlis");
+      const blankItems = konularList.filter(k => k.ders === dersDef.ders && (!alt.altDers || k.altDers === alt.altDers) && k.tip === "bos");
+      if (wrongItems.length === 0 && blankItems.length === 0) return '';
+
+      const wrongCards = wrongItems.map(k => `<div class="history-topic-card"><span>Yanlış:</span> ${k.konu}</div>`).join('');
+      const blankCards = blankItems.map(k => `<div class="history-topic-card is-blank"><span>Boş:</span> ${k.konu}</div>`).join('');
+
+      let inner = '';
+      if (alt.label) inner += `<h6>${alt.label}</h6>`;
+      if (wrongItems.length) inner += `<div class="history-topic-subgroup"><span class="history-topic-subgroup__label">Yanlışlar</span><div class="history-topic-grid">${wrongCards}</div></div>`;
+      if (blankItems.length) inner += `<div class="history-topic-subgroup"><span class="history-topic-subgroup__label">Boşlar</span><div class="history-topic-grid">${blankCards}</div></div>`;
+
+      return `<div class="history-topic-altgrup">${inner}</div>`;
+    }).join('');
+
+    if (!altlarHtml.trim()) return '';
+    return `<div class="history-topic-kategori"><h5>${dersDef.label}</h5>${altlarHtml}</div>`;
+  }).join('');
+}
+
 function renderHistoryTable() {
   const tbody = el("historyTableBody");
   const reversed = [...state.denemeler].reverse();
@@ -603,13 +701,10 @@ function renderHistoryTable() {
     }
 
     const konularList = getKonularForDeneme(d);
-    if (konularList.length > 0) {
-      const cardsHtml = konularList.map((k) => {
-        const isBlank = k.tip === 'bos';
-        const typeStr = isBlank ? 'Boş:' : 'Yanlış:';
-        return `<div class="history-topic-card ${isBlank ? 'is-blank' : ''}"><span>${typeStr}</span> ${k.konu}</div>`;
-      }).join('');
-      detailsHtml += `<h4 style="margin-bottom: 10px; font-size: 0.95rem; font-weight: 800;">Yanlış ve Boş Bırakılan Konular</h4><div class="history-topic-grid">${cardsHtml}</div>`;
+    const konuYapisi = d.tur === "AYT" ? AYT_KONU_YAPISI : TYT_KONU_YAPISI;
+    const konuYapisiHtml = renderKonuYapisiHtml(konularList, konuYapisi);
+    if (konuYapisiHtml.trim()) {
+      detailsHtml += `<h4 style="margin-bottom: 10px; font-size: 0.95rem; font-weight: 800;">Yanlış ve Boş Bırakılan Konular</h4>${konuYapisiHtml}`;
     } else {
       detailsHtml += '<p class="empty-text">Bu deneme için kaydedilmiş yanlış veya boş konu detayı bulunmuyor.</p>';
     }
@@ -680,15 +775,19 @@ const FEN_TABS = [
   { altDers: "biyoloji", label: "Biyoloji" },
 ];
 
+// hasTopics: false olan dersler (Sosyal Bilimler) için konu girişi
+// hiç yapılmadığından, detay kartında "Son Yanlış/Boş Konular" ve
+// "En Çok Yanlış/Boş Yapılan 5 Konu" bölümleri gösterilmez — sadece
+// ortalama Doğru/Yanlış/Boş/Net istatistiği gösterilir.
 const TYT_DETAY_GRUPLARI = [
-  { ders: "turkce", label: "Türkçe", tabs: null },
-  { ders: "sosyal", label: "Sosyal Bilimler", tabs: null },
-  { ders: "matematik", label: "Matematik", tabs: MATEMATIK_TABS },
-  { ders: "fen", label: "Fen Bilimleri", tabs: FEN_TABS },
+  { ders: "turkce", label: "Türkçe", tabs: null, hasTopics: true },
+  { ders: "sosyal", label: "Sosyal Bilimler", tabs: null, hasTopics: false },
+  { ders: "matematik", label: "Matematik", tabs: MATEMATIK_TABS, hasTopics: true },
+  { ders: "fen", label: "Fen Bilimleri", tabs: FEN_TABS, hasTopics: true },
 ];
 const AYT_DETAY_GRUPLARI = [
-  { ders: "matematik", label: "Matematik", tabs: MATEMATIK_TABS },
-  { ders: "fen", label: "Fen Bilimleri", tabs: FEN_TABS },
+  { ders: "matematik", label: "Matematik", tabs: MATEMATIK_TABS, hasTopics: true },
+  { ders: "fen", label: "Fen Bilimleri", tabs: FEN_TABS, hasTopics: true },
 ];
 
 /* ------------------------------------------------------------
@@ -776,6 +875,8 @@ function renderGenelAnalizBlock(bodyEl, denemelerOfType, dersListDef, turLabel) 
 
   const mostWrong = rows.reduce((max, r) => r.stat.avgYanlis > max.stat.avgYanlis ? r : max, rows[0]);
   const mostBlank = rows.reduce((max, r) => r.stat.avgBos > max.stat.avgBos ? r : max, rows[0]);
+  const avgToplamDogru = denemelerOfType.reduce((s, x) => s + (x.toplamDogru || 0), 0) / denemelerOfType.length;
+  const avgToplamYanlis = denemelerOfType.reduce((s, x) => s + (x.toplamYanlis || 0), 0) / denemelerOfType.length;
 
   let html = `
     <div class="genel-analiz-highlight-row">
@@ -788,6 +889,16 @@ function renderGenelAnalizBlock(bodyEl, denemelerOfType, dersListDef, turLabel) 
         <span class="genel-analiz-highlight__label">En Çok Boş Bıraktığın Ders</span>
         <span class="genel-analiz-highlight__value">${mostBlank.label}</span>
         <span class="genel-analiz-highlight__sub">Ort. ${mostBlank.stat.avgBos.toFixed(2)} boş</span>
+      </div>
+    </div>
+    <div class="genel-analiz-highlight-row">
+      <div class="genel-analiz-highlight">
+        <span class="genel-analiz-highlight__label">Ortalama Toplam Doğru</span>
+        <span class="genel-analiz-highlight__value">${avgToplamDogru.toFixed(2)}</span>
+      </div>
+      <div class="genel-analiz-highlight">
+        <span class="genel-analiz-highlight__label">Ortalama Toplam Yanlış</span>
+        <span class="genel-analiz-highlight__value">${avgToplamYanlis.toFixed(2)}</span>
       </div>
     </div>
     <div class="genel-analiz-subject-grid">
@@ -838,10 +949,26 @@ function renderTopList(clusters) {
     </div>`).join('') + `</div>`;
 }
 
-function renderDetailCardBody(bodyEl, denemelerOfType, ders, altDers, label) {
+function renderDetailCardBody(bodyEl, denemelerOfType, ders, altDers, label, hasTopics = true) {
   const stat = computeAverageStats(denemelerOfType, ders, altDers);
   if (!stat) {
     bodyEl.innerHTML = `<p class="empty-text">${label} için veri bulunamadı.</p>`;
+    return;
+  }
+
+  const statsHtml = `
+    <div class="ders-detay-stats">
+      <div><span>Ort. Doğru</span><strong>${stat.avgDogru.toFixed(2)}</strong></div>
+      <div><span>Ort. Yanlış</span><strong>${stat.avgYanlis.toFixed(2)}</strong></div>
+      <div><span>Ort. Boş</span><strong>${stat.avgBos.toFixed(2)}</strong></div>
+      <div><span>Ort. Net</span><strong>${stat.avgNet.toFixed(2)}</strong></div>
+    </div>
+  `;
+
+  // Sosyal Bilimler gibi konu girişi olmayan dersler için sadece
+  // ortalama istatistik kartı gösterilir, konu listeleri hiç basılmaz.
+  if (!hasTopics) {
+    bodyEl.innerHTML = statsHtml;
     return;
   }
 
@@ -851,13 +978,7 @@ function renderDetailCardBody(bodyEl, denemelerOfType, ders, altDers, label) {
   const topBlank = clusterAndRankTopics(blankList.map(x => x.konu), 5);
   const groupId = `${ders}_${altDers || 'genel'}`.replace(/[^a-zA-Z0-9_]/g, '');
 
-  bodyEl.innerHTML = `
-    <div class="ders-detay-stats">
-      <div><span>Ort. Doğru</span><strong>${stat.avgDogru.toFixed(2)}</strong></div>
-      <div><span>Ort. Yanlış</span><strong>${stat.avgYanlis.toFixed(2)}</strong></div>
-      <div><span>Ort. Boş</span><strong>${stat.avgBos.toFixed(2)}</strong></div>
-      <div><span>Ort. Net</span><strong>${stat.avgNet.toFixed(2)}</strong></div>
-    </div>
+  bodyEl.innerHTML = statsHtml + `
     <div class="ders-detay-columns">
       <div class="ders-detay-column">
         <h4>Son Yanlış Yaptığın Konular</h4>
@@ -933,12 +1054,12 @@ function renderDersBazliAnaliz() {
           btn.classList.add("is-active");
           const altDers = btn.dataset.alt || null;
           const tabDef = grup.tabs.find(t => (t.altDers || '') === (altDers || ''));
-          renderDetailCardBody(bodyEl, denemelerOfType, grup.ders, altDers, `${grup.label} - ${tabDef.label}`);
+          renderDetailCardBody(bodyEl, denemelerOfType, grup.ders, altDers, `${grup.label} - ${tabDef.label}`, grup.hasTopics);
         });
       });
-      renderDetailCardBody(bodyEl, denemelerOfType, grup.ders, null, `${grup.label} - Genel`);
+      renderDetailCardBody(bodyEl, denemelerOfType, grup.ders, null, `${grup.label} - Genel`, grup.hasTopics);
     } else {
-      renderDetailCardBody(bodyEl, denemelerOfType, grup.ders, null, grup.label);
+      renderDetailCardBody(bodyEl, denemelerOfType, grup.ders, null, grup.label, grup.hasTopics);
     }
   });
 }
