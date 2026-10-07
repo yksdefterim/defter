@@ -7,7 +7,9 @@ import {
   addDeneme, deleteDeneme, updateDenemeAiNote, watchDenemeler,
 } from "./firebase-config.js";
 
-import { analyzeSingleExam, analyzeChronicPatterns } from "./gemini-service.js";
+// gemini-service.js eksik/bozuk olsa bile uygulama açılsın diye sadece kullanılınca yüklenir
+const analyzeSingleExam = async (...args) => (await import("./gemini-service.js")).analyzeSingleExam(...args);
+const analyzeChronicPatterns = async (...args) => (await import("./gemini-service.js")).analyzeChronicPatterns(...args);
 
 /* ------------------------------------------------------------
    ÖZEL SEÇİM MENÜSÜ KONTROLCÜSÜ (CUSTOM SELECT UI)
@@ -757,7 +759,7 @@ async function handlePdfFile(file) {
   }
   setPdfStatus("PDF okunuyor...");
   try {
-    const { parseExamPdf } = await import("./pdf-parser.js?v=2"); // sadece PDF yüklenince çekilir
+    const { parseExamPdf } = await import("./pdf-parser.js"); // sadece PDF yüklenince çekilir
     pendingPdf = await parseExamPdf(file, { alan: state.userAlan });
     setPdfStatus("");
     renderPdfPreview();
