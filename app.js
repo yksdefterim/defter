@@ -89,7 +89,17 @@ const state = {
   user: null, userAlan: "sayisal", denemeler: [],
   unsubscribeDenemeler: null, chart: null,
 };
-const el = (id) => document.getElementById(id);
+// Eksik bir eleman yüzünden tüm uygulamanın çökmesini engeller; konsola hangisinin eksik olduğunu yazar
+const _missingWarned = new Set();
+const el = (id) => {
+  const node = document.getElementById(id);
+  if (node) return node;
+  if (!_missingWarned.has(id)) {
+    _missingWarned.add(id);
+    console.warn("[Defter] index.html'de eksik eleman: #" + id);
+  }
+  return document.createElement("div"); // boş yedek eleman
+};
 
 /* ------------------------------------------------------------
    GÖRÜNÜM KONTROLLERİ
@@ -175,10 +185,9 @@ watchAuthState((user) => {
 
     state.unsubscribeDenemeler = watchDenemeler(user.uid, (denemeler) => {
       state.denemeler = denemeler;
-      renderDashboard();
-      renderHistoryTable();
-      populateAnalysisDropdown();
-      autoUpdateRoadmap();
+      [renderDashboard, renderHistoryTable, populateAnalysisDropdown, autoUpdateRoadmap].forEach((fn) => {
+        try { fn(); } catch (err) { console.error("[Defter] " + fn.name + " hatası:", err); }
+      });
     });
   } else {
     showLanding();
@@ -748,7 +757,7 @@ async function handlePdfFile(file) {
   }
   setPdfStatus("PDF okunuyor...");
   try {
-    const { parseExamPdf } = await import("./pdf-parser.js"); // sadece PDF yüklenince çekilir
+    const { parseExamPdf } = await import("./pdf-parser.js?v=2"); // sadece PDF yüklenince çekilir
     pendingPdf = await parseExamPdf(file, { alan: state.userAlan });
     setPdfStatus("");
     renderPdfPreview();
