@@ -8,7 +8,6 @@ import {
 } from "./firebase-config.js";
 
 import { analyzeSingleExam, analyzeChronicPatterns } from "./gemini-service.js";
-import { parseExamPdf } from "./pdf-parser.js";
 
 /* ------------------------------------------------------------
    ÖZEL SEÇİM MENÜSÜ KONTROLCÜSÜ (CUSTOM SELECT UI)
@@ -749,6 +748,7 @@ async function handlePdfFile(file) {
   }
   setPdfStatus("PDF okunuyor...");
   try {
+    const { parseExamPdf } = await import("./pdf-parser.js"); // sadece PDF yüklenince çekilir
     pendingPdf = await parseExamPdf(file, { alan: state.userAlan });
     setPdfStatus("");
     renderPdfPreview();
@@ -836,9 +836,11 @@ async function confirmPdfSave() {
 
 const pdfDropzone = el("pdfDropzone");
 const pdfFileInput = el("pdfFileInput");
+if (pdfDropzone && pdfFileInput) {
 pdfDropzone.addEventListener("click", () => pdfFileInput.click());
 pdfDropzone.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pdfFileInput.click(); } });
 pdfFileInput.addEventListener("change", () => { handlePdfFile(pdfFileInput.files[0]); pdfFileInput.value = ""; });
 ["dragenter", "dragover"].forEach((ev) => pdfDropzone.addEventListener(ev, (e) => { e.preventDefault(); pdfDropzone.classList.add("is-drag"); }));
 ["dragleave", "drop"].forEach((ev) => pdfDropzone.addEventListener(ev, (e) => { e.preventDefault(); pdfDropzone.classList.remove("is-drag"); }));
 pdfDropzone.addEventListener("drop", (e) => handlePdfFile(e.dataTransfer.files[0]));
+}
