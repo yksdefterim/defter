@@ -2,10 +2,12 @@
 // app.js - Uygulama Mantığı & Firestore Bağlantısı
 // ============================================================
 
-import {
-  auth, registerUser, loginUser, logoutUser, watchAuthState,
-  addDeneme, deleteDeneme, updateDenemeAiNote, watchDenemeler,
-} from "./firebase-config.js";
+import * as fb from "./firebase-config.js";
+
+// Eski bir firebase-config.js yüklü olsa bile uygulama çökmesin diye isim isim alınır
+const { auth, registerUser, loginUser, logoutUser, watchAuthState, addDeneme, deleteDeneme, watchDenemeler } = fb;
+const updateDenemeAiNote = fb.updateDenemeAiNote || (async () => {});
+if (!fb.updateDenemeAiNote) console.warn("[Defter] firebase-config.js eski sürüm: updateDenemeAiNote yok, dosyayı güncelle.");
 
 // gemini-service.js eksik/bozuk olsa bile uygulama açılsın diye sadece kullanılınca yüklenir
 const analyzeSingleExam = async (...args) => (await import("./gemini-service.js")).analyzeSingleExam(...args);
