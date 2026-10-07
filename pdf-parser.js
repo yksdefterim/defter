@@ -283,7 +283,7 @@ function buildDeneme(summary, topics, opts) {
   const warnings = [];
   const missing = [];
   const dersler = {};
-  const konuDetaylari = {};
+  const konular = []; // uygulamanın kayıt yapısı: { ders, altDers, tip, konu }
   const konuGruplari = []; // sadece önizleme için
   let gD = 0, gY = 0, gB = 0, gN = 0;
 
@@ -304,17 +304,20 @@ function buildDeneme(summary, topics, opts) {
         warnings.push(`${subName}: D+Y+B toplamı soru sayısıyla (${s.soru}) uyuşmuyor.`);
       }
 
-      const t = (topics && topics[card.subs ? subId : "turkce"]) || { wrong: [], blank: [] };
-      const prefix = card.subs ? `${card.id}_${subId}` : `${card.id}_`;
-      t.wrong.forEach((n, i) => (konuDetaylari[`${prefix}_wrong_${i + 1}`] = n));
-      t.blank.forEach((n, i) => (konuDetaylari[`${prefix}_blank_${i + 1}`] = n));
-      konuGruplari.push({ ders: subName, yanlis: t.wrong, bos: t.blank });
+      // Sosyal Bilimler için uygulamada konu girilmediği için o dersin konuları kaydedilmez
+      if (card.id !== "sosyal") {
+        const t = (topics && topics[card.subs ? subId : "turkce"]) || { wrong: [], blank: [] };
+        const altDers = card.subs ? subId : null;
+        t.wrong.forEach((n) => konular.push({ ders: card.id, altDers, tip: "yanlis", konu: n }));
+        t.blank.forEach((n) => konular.push({ ders: card.id, altDers, tip: "bos", konu: n }));
+        konuGruplari.push({ ders: subName, yanlis: t.wrong, bos: t.blank });
 
-      if (topics) {
-        if (t.wrong.length !== s.yanlis)
-          warnings.push(`${subName}: karnede ${s.yanlis} yanlış var, konu sayfasında ${t.wrong.length} yanlış konu bulundu.`);
-        if (t.blank.length !== s.bos)
-          warnings.push(`${subName}: karnede ${s.bos} boş var, konu sayfasında ${t.blank.length} boş konu bulundu.`);
+        if (topics) {
+          if (t.wrong.length !== s.yanlis)
+            warnings.push(`${subName}: karnede ${s.yanlis} yanlış var, konu sayfasında ${t.wrong.length} yanlış konu bulundu.`);
+          if (t.blank.length !== s.bos)
+            warnings.push(`${subName}: karnede ${s.bos} boş var, konu sayfasında ${t.blank.length} boş konu bulundu.`);
+        }
       }
     }
 
@@ -349,7 +352,7 @@ function buildDeneme(summary, topics, opts) {
     toplamBos: gB,
     toplamNet: gN,
     dersler,
-    konuDetaylari,
+    konular,
   };
   return { denemeData, konuGruplari, warnings, ogrenci: info.ogrenci };
 }
