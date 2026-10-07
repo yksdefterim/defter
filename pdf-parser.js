@@ -30,15 +30,22 @@ const SUBJECT_KEYS = {
   [norm("Biyoloji")]: "biyoloji",
 };
 
-// Bazı PDF'lerde "ti", "tı", "ft" gibi ligatürler okunamayıp \u0000 olarak gelebiliyor
-// (örn. "Matema\u0000k"). Ders adı eşleştirirken \u0000 1-2 harf yerine geçer.
-const escapeRe = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+// Bazı PDF'lerde "ti", "tı", "ft" gibi ligatürler okunamıyor, bozuk karakter, boşluk ya da hiç gelmiyor
+// (örn. "Matema\u0000k", "Matema k"). Ders adı eşleştirirken bozuk harfler yok sayılır:
+// okunan harfler, gerçek ders adında sırayla geçiyorsa ve en fazla 3 harf eksikse eşleşir.
+const lettersOnly = (x) => x.replace(/[^\p{L}]/gu, "");
 function subjectKeyOf(text) {
   const t = norm(text);
   if (SUBJECT_KEYS[t]) return SUBJECT_KEYS[t];
-  if (!t.includes("\u0000")) return null;
-  const re = new RegExp("^" + t.split("\u0000").map(escapeRe).join(".{1,2}") + "$");
-  for (const [name, key] of Object.entries(SUBJECT_KEYS)) if (re.test(name)) return key;
+  const sk = lettersOnly(t);
+  if (sk.length < 4) return null;
+  for (const [name, key] of Object.entries(SUBJECT_KEYS)) {
+    const full = lettersOnly(name);
+    if (full[0] !== sk[0] || full.length - sk.length < 0 || full.length - sk.length > 3) continue;
+    let i = 0;
+    for (const ch of full) if (ch === sk[i]) i++;
+    if (i === sk.length) return key;
+  }
   return null;
 }
 const cleanText = (x) => x.replace(/\u0000+/g, "…");
@@ -234,20 +241,34 @@ function parseTopicsPage(words) {
   // Tablolar DC başlığının yaklaşık 112 pt solunda başlıyor
   const starts = dcHeaders.map((h, i) => (i === 0 ? -Infinity : h.x - 112));
   const topics = {}; // altDersAnahtari -> { wrong: [], blank: [], toplam }
+  // Tablolar soldan sağa ve yukarıdan aşağı bu sırayla ilerliyor; başlık okunamazsa sıradakini varsayarız
+  const SECTION_ORDER = ["turkce", "matematikSub", "geometri", "tarih", "cografya", "felsefe", "din", "fizik", "kimya", "biyoloji"];
+  let nextSection = 0;
 
   starts.forEach((lo, i) => {
     const hi = i + 1 < starts.length ? starts[i + 1] : Infinity;
     const colWords = words.filter((w) => w.x >= lo && w.x < hi);
     let section = null;
+    let seenHeader = false;
 
     for (const row of groupRows(colWords)) {
       const toks = row.words;
       const keys = toks.map((t) => norm(t.str));
-      if (keys.includes("DC") && keys.includes("ÖC")) continue; // sütun başlığı satırı
+      if (keys.includes("DC") && keys.includes("ÖC")) { seenHeader = true; continue; } // sütun başlığı satırı
+      if (!seenHeader) continue; // tablonun üstündeki başlık/açıklama satırları
 
       // Bölüm başlığı satırı (Türkçe, Matematik, Geometri, Tarih ...)
       if (!isNum(toks[0].str)) {
-        const sec = subjectKeyOf(toks.map((t) => t.str).join(" "));
+        const text = toks.map((t) => t.str).join(" ");
+        let sec = subjectKeyOf(text);
+        if (sec) {
+          nextSection = SECTION_ORDER.indexOf(sec) + 1;
+        } else {
+          const looksLikeHeader =
+            toks.length <= 4 && text.length <= 25 && !/\d{1,2}\.\d{1,2}\.\d{4}/.test(text) &&
+            !toks.some((t) => /^[A-E+\-−–]$/.test(t.str));
+          if (looksLikeHeader && nextSection < SECTION_ORDER.length) sec = SECTION_ORDER[nextSection++];
+        }
         if (sec) { section = sec; if (!topics[sec]) topics[sec] = { wrong: [], blank: [], toplam: 0 }; }
         continue;
       }
