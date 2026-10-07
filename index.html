@@ -19,7 +19,7 @@
 <!-- pdf.js (PDF karne okuma) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 
-<link rel="stylesheet" href="styles.css?v=2">
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
@@ -71,7 +71,7 @@
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
       Ana Sayfaya Dön
     </button>
-    
+
     <div class="brand-mark">
       <div class="brand-icon">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
@@ -291,7 +291,7 @@
           <button type="submit" class="btn-neo btn-neo--primary btn-neo--full btn-neo--lg">Denemeyi Kaydet</button>
         </form>
 
-        <!-- PDF PANELİ -->
+        <!-- PDF PANELİ (YAKINDA OVERLAY) -->
         <div id="pdfEntryPanel" class="panel entry-panel" hidden>
           <div class="panel__header">
             <h2>PDF ile Otomatik Oku</h2>
@@ -309,47 +309,40 @@
         </div>
       </section>
 
-      <!-- GÖRÜNÜM: ANALİZ -->
-<section id="view-analiz" class="view">
-  <div class="panel">
-    <div class="panel__header">
-      <h2>Tek Deneme Analizi</h2>
-    </div>
-    <div class="analysis-select-row">
-      
-      <!-- GÜNCELLENEN KISIM: Özel Dropdown (Flex yapısına uyumlu hale getirildi) -->
-      <div class="custom-dropdown" id="denemeDropdown" style="flex: 1; margin: 0; max-width: none;">
-        <div class="dropdown-selected" id="dropdownSelectedText">
-          Analiz için bir deneme seçin... <span style="font-size: 12px;">▼</span>
-        </div>
-        <ul class="dropdown-options" id="dropdownOptionsList">
-          <!-- Seçenekler JavaScript ile buraya eklenecek -->
-        </ul>
-      </div>
-      
-      <button type="button" id="runSingleAnalysisBtn" class="btn-neo btn-neo--primary">Analiz Et</button>
-    </div>
-    <div id="singleAnalysisOutput" class="analysis-result-box">
-      <p class="empty-text">Listeden bir deneme seçip "Analiz Et" butonuna tıklayın.</p>
-    </div>
-  </div>
-
+      <!-- GÖRÜNÜM: ANALİZ (Yapay zeka içermez — tüm hesaplar site tarafından yapılır) -->
+      <section id="view-analiz" class="view">
         <div class="panel">
           <div class="panel__header">
-            <h2>Kronik Analiz (Tüm Denemeler)</h2>
-            <button type="button" id="runChronicAnalysisBtn" class="btn-neo btn-neo--accent">Tümünü Taramayı Başlat</button>
+            <h2>Genel Analiz</h2>
           </div>
-          <div id="chronicAnalysisOutput" class="analysis-result-box">
-            <p class="empty-text">Sürekli tekrar eden eksiklerinizi bulmak için taramayı çalıştırın (En az 3 deneme önerilir).</p>
+          <div class="genel-analiz-grid">
+            <div class="genel-analiz-block" id="genelAnalizTyt">
+              <h3 class="genel-analiz-block__title">TYT</h3>
+              <div class="genel-analiz-block__body">
+                <p class="empty-text">Daha önce TYT denemesi eklenmemiş.</p>
+              </div>
+            </div>
+            <div class="genel-analiz-block" id="genelAnalizAyt">
+              <h3 class="genel-analiz-block__title">AYT (Sayısal)</h3>
+              <div class="genel-analiz-block__body">
+                <p class="empty-text">Daha önce AYT denemesi eklenmemiş.</p>
+              </div>
+            </div>
           </div>
         </div>
 
         <div class="panel">
           <div class="panel__header">
-            <h2>Kişiselleştirilmiş Yol Haritası</h2>
+            <h2>Ders Bazlı Analiz</h2>
+            <div class="select-wrapper select-wrapper--sm" style="width: 160px;">
+              <select id="dersAnalizTurFilter">
+                <option value="TYT">TYT</option>
+                <option value="AYT">AYT</option>
+              </select>
+            </div>
           </div>
-          <div id="roadmapOutput" class="analysis-result-box roadmap-box">
-            <p class="empty-text">Eklenen denemelere göre yol haritanız burada oluşturulacak.</p>
+          <div id="dersBazliAnalizContainer" class="ders-analiz-container">
+            <p class="empty-text">Daha önce TYT denemesi eklenmemiş.</p>
           </div>
         </div>
       </section>
@@ -386,6 +379,6 @@
 
 <div id="toastStack" class="toast-stack"></div>
 
-<script type="module" src="app.js?v=2"></script>
+<script type="module" src="app.js"></script>
 </body>
 </html>
