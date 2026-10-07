@@ -248,7 +248,7 @@ function parseTopicsPage(words) {
       // Bölüm başlığı satırı (Türkçe, Matematik, Geometri, Tarih ...)
       if (!isNum(toks[0].str)) {
         const sec = subjectKeyOf(toks.map((t) => t.str).join(" "));
-        if (sec) { section = sec; topics[sec] ??= { wrong: [], blank: [], toplam: 0 }; }
+        if (sec) { section = sec; if (!topics[sec]) topics[sec] = { wrong: [], blank: [], toplam: 0 }; }
         continue;
       }
 
@@ -304,7 +304,7 @@ function buildDeneme(summary, topics, opts) {
         warnings.push(`${subName}: D+Y+B toplamı soru sayısıyla (${s.soru}) uyuşmuyor.`);
       }
 
-      const t = topics?.[card.subs ? subId : "turkce"] || { wrong: [], blank: [] };
+      const t = (topics && topics[card.subs ? subId : "turkce"]) || { wrong: [], blank: [] };
       const prefix = card.subs ? `${card.id}_${subId}` : `${card.id}_`;
       t.wrong.forEach((n, i) => (konuDetaylari[`${prefix}_wrong_${i + 1}`] = n));
       t.blank.forEach((n, i) => (konuDetaylari[`${prefix}_blank_${i + 1}`] = n));
