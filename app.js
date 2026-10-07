@@ -3,9 +3,12 @@
 // ============================================================
 
 import {
-  auth, registerUser, loginUser, logoutUser, watchAuthState, changeUserPassword,
-  addDeneme, deleteDeneme, watchDenemeler,
+  auth, registerUser, loginUser, logoutUser, watchAuthState,
+  addDeneme, deleteDeneme, updateDenemeAiNote, watchDenemeler,
 } from "./firebase-config.js";
+
+import { analyzeSingleExam, analyzeChronicPatterns } from "./gemini-service.js";
+import { parseExamPdf } from "./pdf-parser.js";
 
 /* ------------------------------------------------------------
    ÖZEL SEÇİM MENÜSÜ KONTROLCÜSÜ (CUSTOM SELECT UI)
@@ -16,33 +19,33 @@ class CustomSelect {
     this.originalSelect.style.display = 'none';
     this.wrapper = document.createElement('div');
     this.wrapper.className = 'neo-select';
-
+    
     this.trigger = document.createElement('div');
     this.trigger.className = 'neo-select__trigger';
-
+    
     this.optionsContainer = document.createElement('div');
     this.optionsContainer.className = 'neo-select__options';
-
+    
     this.wrapper.appendChild(this.trigger);
     this.wrapper.appendChild(this.optionsContainer);
     this.originalSelect.parentNode.insertBefore(this.wrapper, this.originalSelect.nextSibling);
-
+    
     this.render();
     this.setupEvents();
   }
-
+  
   render() {
     this.optionsContainer.innerHTML = '';
     const options = Array.from(this.originalSelect.options);
     let selectedText = options.length > 0 ? options[0].text : '';
-
+    
     options.forEach(opt => {
       if (opt.selected) selectedText = opt.text;
       const optDiv = document.createElement('div');
       optDiv.className = 'neo-select__option' + (opt.selected ? ' is-selected' : '') + (opt.disabled ? ' is-disabled' : '');
       optDiv.textContent = opt.text;
       optDiv.dataset.value = opt.value;
-
+      
       if (!opt.disabled) {
         optDiv.addEventListener('click', (e) => {
           e.stopPropagation();
@@ -54,10 +57,10 @@ class CustomSelect {
       }
       this.optionsContainer.appendChild(optDiv);
     });
-
+    
     this.trigger.innerHTML = `<span>${selectedText}</span> <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>`;
   }
-
+  
   setupEvents() {
     this.trigger.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -67,7 +70,7 @@ class CustomSelect {
     });
     document.addEventListener('click', () => this.wrapper.classList.remove('is-open'));
   }
-
+  
   close() { this.wrapper.classList.remove('is-open'); }
 }
 
@@ -118,8 +121,6 @@ function showToast(message, type = "info", duration = 4000) {
 ------------------------------------------------------------- */
 function switchAuthTab(target) {
   const isLogin = target === "login";
-  el("authTabsRow").hidden = false;
-  el("forgotPasswordForm").hidden = true;
   el("authTabLogin").classList.toggle("is-active", isLogin);
   el("authTabRegister").classList.toggle("is-active", !isLogin);
   el("loginForm").hidden = !isLogin;
@@ -134,7 +135,7 @@ el("loginForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   try {
     await loginUser(el("loginEmail").value.trim(), el("loginPassword").value);
-    showToast("Başarıyla giriş yaptınız.", "success", 500);
+    showToast("Başarıyla giriş yaptınız.", "success", 500); 
   } catch (err) {
     el("authError").textContent = "Giriş başarısız. E-posta veya şifre hatalı.";
     el("authError").hidden = false;
@@ -147,53 +148,9 @@ el("registerForm").addEventListener("submit", async (e) => {
     const name = el("registerName").value.trim();
     const alan = el("registerAlan").value;
     await registerUser(name, el("registerEmail").value.trim(), el("registerPassword").value, alan);
-    showToast("Kayıt olma başarılı.", "success", 500);
+    showToast("Kayıt olma başarılı.", "success", 500); 
   } catch (err) {
     el("authError").textContent = "Kayıt olunamadı: " + err.message;
-    el("authError").hidden = false;
-  }
-});
-
-/* ------------------------------------------------------------
-   ŞİFREMİ UNUTTUM / ŞİFRE DEĞİŞTİRME
-   (E-posta + eski şifre ile yeniden kimlik doğrulama yapıp
-   şifreyi güncelliyoruz; bu akış için Firebase'de oturumun
-   önceden açık olması gerekmiyor.)
-------------------------------------------------------------- */
-function showForgotPasswordForm() {
-  el("authTabsRow").hidden = true;
-  el("loginForm").hidden = true;
-  el("registerForm").hidden = true;
-  el("forgotPasswordForm").hidden = false;
-  el("authError").hidden = true;
-}
-
-el("forgotPasswordLink").addEventListener("click", showForgotPasswordForm);
-el("forgotBackToLogin").addEventListener("click", () => switchAuthTab("login"));
-
-el("forgotPasswordForm").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const email = el("forgotEmail").value.trim();
-  const oldPassword = el("forgotOldPassword").value;
-  const newPassword = el("forgotNewPassword").value;
-  const newPasswordConfirm = el("forgotNewPasswordConfirm").value;
-
-  if (newPassword !== newPasswordConfirm) {
-    el("authError").hidden = true;
-    el("forgotPasswordForm").hidden = false;
-    el("authTabsRow").hidden = true;
-    el("authError").textContent = "Yeni şifreler birbiriyle eşleşmiyor.";
-    el("authError").hidden = false;
-    return;
-  }
-
-  try {
-    await changeUserPassword(email, oldPassword, newPassword);
-    showToast("Şifreniz başarıyla değiştirildi.", "success");
-    el("forgotPasswordForm").reset();
-    switchAuthTab("login");
-  } catch (err) {
-    el("authError").textContent = "Şifre değiştirilemedi. E-posta veya eski şifreyi kontrol edin.";
     el("authError").hidden = false;
   }
 });
@@ -212,23 +169,17 @@ watchAuthState((user) => {
     const displayName = user.displayName || user.email.split("@")[0];
     el("userDisplayName").textContent = displayName;
     el("userAvatarInitial").textContent = displayName.charAt(0).toUpperCase();
-
+    
     state.userAlan = user.photoURL || "sayisal";
     const alanNames = { sayisal: "Sayısal", ea: "Eşit Ağırlık", sozel: "Sözel", dil: "Dil" };
     el("userDisplayAlan").textContent = alanNames[state.userAlan] || "Sayısal";
 
-    // NOT: Her render fonksiyonu ayrı try/catch içine alındı.
-    // Önceki sürümde bunlardan biri (grafik/analiz) hata fırlatırsa
-    // zincirdeki sonraki fonksiyonlar (Deneme Geçmişi, Analiz vs.)
-    // hiç çalışmıyordu — yeni deneme kaydedilince sadece üstteki
-    // ortalama/en-yüksek-net kutucuklarının güncellenip diğerlerinin
-    // güncellenmemesi tam olarak bu yüzdendi. Artık biri patlasa da
-    // diğerleri çalışmaya devam ediyor.
     state.unsubscribeDenemeler = watchDenemeler(user.uid, (denemeler) => {
       state.denemeler = denemeler;
-      try { renderDashboard(); } catch (err) { console.error("Genel Bakış render hatası:", err); }
-      try { renderHistoryTable(); } catch (err) { console.error("Deneme Geçmişi render hatası:", err); }
-      try { renderAnalizView(); } catch (err) { console.error("Analiz render hatası:", err); }
+      renderDashboard();
+      renderHistoryTable();
+      populateAnalysisDropdown();
+      autoUpdateRoadmap();
     });
   } else {
     showLanding();
@@ -238,30 +189,14 @@ watchAuthState((user) => {
 });
 
 /* ------------------------------------------------------------
-   MENÜ GEÇİŞLERİ (+ Mobil Hamburger Menü)
+   MENÜ GEÇİŞLERİ
 ------------------------------------------------------------- */
-const sidebarNavEl = document.querySelector(".sidebar");
-const sidebarBackdropEl = el("sidebarBackdrop");
-const mobileMenuBtnEl = el("mobileMenuBtn");
-
-function closeMobileMenu() {
-  if (sidebarNavEl) sidebarNavEl.classList.remove("is-open");
-  if (sidebarBackdropEl) sidebarBackdropEl.classList.remove("is-visible");
-}
-function toggleMobileMenu() {
-  if (sidebarNavEl) sidebarNavEl.classList.toggle("is-open");
-  if (sidebarBackdropEl) sidebarBackdropEl.classList.toggle("is-visible");
-}
-if (mobileMenuBtnEl) mobileMenuBtnEl.addEventListener("click", toggleMobileMenu);
-if (sidebarBackdropEl) sidebarBackdropEl.addEventListener("click", closeMobileMenu);
-
 document.querySelectorAll(".sidebar__btn").forEach((btn) => {
   btn.addEventListener("click", () => {
     document.querySelectorAll(".sidebar__btn").forEach((b) => b.classList.remove("is-active"));
     document.querySelectorAll(".view").forEach((v) => v.classList.remove("is-active"));
     btn.classList.add("is-active");
     el(`view-${btn.dataset.view}`).classList.add("is-active");
-    closeMobileMenu();
   });
 });
 
@@ -388,9 +323,9 @@ function calculateFormTotals() {
       const y = parseInt(card.querySelector(".input-y").value) || 0;
       const b = parseInt(card.querySelector(".input-b").value) || 0;
       cardNet = d - (y * 0.25);
-
+      
       const netInput = card.querySelector(`#${cardId}_net`);
-      if (netInput) netInput.value = cardNet.toFixed(2);
+      if(netInput) netInput.value = cardNet.toFixed(2);
 
       grandD += d; grandY += y; grandB += b;
       updateTopicFields(cardId, "", card.querySelector('.subject-card__title').textContent, y, b);
@@ -466,34 +401,7 @@ function updateSubTopicsForCard(card) {
 renderFormStructure();
 
 /* ------------------------------------------------------------
-   KONU VERİSİ YARDIMCILARI
-   (Yeni kayıtlar "konular" dizisini kullanır; eski kayıtlarda
-   sadece "konuDetaylari" varsa buradan otomatik türetilir, böylece
-   geçmiş denemeler de analizde kullanılabilir.)
-------------------------------------------------------------- */
-const TOPIC_KEY_REGEX = /^([a-z]+)_([a-zA-Z]*)_(wrong|blank)_(\d+)$/;
-
-function getKonularForDeneme(deneme) {
-  if (Array.isArray(deneme.konular)) return deneme.konular;
-  const result = [];
-  if (deneme.konuDetaylari) {
-    Object.entries(deneme.konuDetaylari).forEach(([key, konu]) => {
-      if (!konu) return;
-      const m = key.match(TOPIC_KEY_REGEX);
-      if (!m) return;
-      result.push({
-        ders: m[1],
-        altDers: m[2] || null,
-        tip: m[3] === "wrong" ? "yanlis" : "bos",
-        konu,
-      });
-    });
-  }
-  return result;
-}
-
-/* ------------------------------------------------------------
-   FORM KAYDETME (Analiz için yapılandırılmış "konular" dizisi ile)
+   FORM KAYDETME (Ders Bazlı Veriler de Eklenerek Güncellendi)
 ------------------------------------------------------------- */
 el("manualEntryForm").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -501,6 +409,7 @@ el("manualEntryForm").addEventListener("submit", async (e) => {
 
   const denemeAlani = el("entryType").value === "AYT" ? el("entryAlan").value : (state.userAlan || "sayisal");
 
+  // Ders bazlı doğru/yanlış/boş ve netlerin toplanması
   const dersler = {};
   document.querySelectorAll(".subject-card").forEach((card) => {
     const cardId = card.dataset.subjectCard;
@@ -537,23 +446,6 @@ el("manualEntryForm").addEventListener("submit", async (e) => {
     }
   });
 
-  // Konu detayları artık ders/altDers/tip bilgisiyle birlikte
-  // yapılandırılmış bir dizi olarak kaydediliyor; analiz ekranı
-  // bunu doğrudan kullanıyor.
-  const konular = [];
-  document.querySelectorAll(".topic-input-item input").forEach((inp) => {
-    const val = inp.value.trim();
-    if (!val) return;
-    const m = inp.name.match(TOPIC_KEY_REGEX);
-    if (!m) return;
-    konular.push({
-      ders: m[1],
-      altDers: m[2] || null,
-      tip: m[3] === "wrong" ? "yanlis" : "bos",
-      konu: val,
-    });
-  });
-
   const denemeData = {
     denemeAdi: el("entryName").value.trim(),
     tarih: el("entryDate").value,
@@ -563,9 +455,13 @@ el("manualEntryForm").addEventListener("submit", async (e) => {
     toplamYanlis: parseInt(el("grandTotalYanlis").textContent),
     toplamBos: parseInt(el("grandTotalBos").textContent),
     toplamNet: parseFloat(el("grandTotalNet").textContent),
-    dersler: dersler,
-    konular: konular,
+    dersler: dersler, // Ders bazlı istatistikler veritabanına kaydediliyor
+    konuDetaylari: {},
   };
+
+  document.querySelectorAll(".topic-input-item input").forEach((inp) => {
+    denemeData.konuDetaylari[inp.name] = inp.value.trim();
+  });
 
   try {
     await addDeneme(state.user.uid, denemeData);
@@ -624,44 +520,8 @@ function renderChart() {
 }
 
 /* ------------------------------------------------------------
-   GEÇMİŞ TABLOSU — KONU YAPISI (Türkçe > Yanlış/Boş,
-   Matematik > Matematik/Geometri > Yanlış/Boş,
-   Fen > Fizik/Kimya/Biyoloji > Yanlış/Boş. Sosyal'da konu
-   girişi olmadığı için hiç listelenmiyor.)
+   GEÇMİŞ TABLOSU (Ders Bazlı Detayların Gösterildiği Alan)
 ------------------------------------------------------------- */
-const TYT_KONU_YAPISI = [
-  { ders: "turkce", label: "Türkçe", altlar: [{ altDers: null, label: null }] },
-  { ders: "matematik", label: "Matematik", altlar: [{ altDers: "matematikSub", label: "Matematik" }, { altDers: "geometri", label: "Geometri" }] },
-  { ders: "fen", label: "Fen Bilimleri", altlar: [{ altDers: "fizik", label: "Fizik" }, { altDers: "kimya", label: "Kimya" }, { altDers: "biyoloji", label: "Biyoloji" }] },
-];
-const AYT_KONU_YAPISI = [
-  { ders: "matematik", label: "Matematik", altlar: [{ altDers: "matematikSub", label: "Matematik" }, { altDers: "geometri", label: "Geometri" }] },
-  { ders: "fen", label: "Fen Bilimleri", altlar: [{ altDers: "fizik", label: "Fizik" }, { altDers: "kimya", label: "Kimya" }, { altDers: "biyoloji", label: "Biyoloji" }] },
-];
-
-function renderKonuYapisiHtml(konularList, yapi) {
-  return yapi.map((dersDef) => {
-    const altlarHtml = dersDef.altlar.map((alt) => {
-      const wrongItems = konularList.filter(k => k.ders === dersDef.ders && (!alt.altDers || k.altDers === alt.altDers) && k.tip === "yanlis");
-      const blankItems = konularList.filter(k => k.ders === dersDef.ders && (!alt.altDers || k.altDers === alt.altDers) && k.tip === "bos");
-      if (wrongItems.length === 0 && blankItems.length === 0) return '';
-
-      const wrongCards = wrongItems.map(k => `<div class="history-topic-card"><span>Yanlış:</span> ${k.konu}</div>`).join('');
-      const blankCards = blankItems.map(k => `<div class="history-topic-card is-blank"><span>Boş:</span> ${k.konu}</div>`).join('');
-
-      let inner = '';
-      if (alt.label) inner += `<h6>${alt.label}</h6>`;
-      if (wrongItems.length) inner += `<div class="history-topic-subgroup"><span class="history-topic-subgroup__label">Yanlışlar</span><div class="history-topic-grid">${wrongCards}</div></div>`;
-      if (blankItems.length) inner += `<div class="history-topic-subgroup"><span class="history-topic-subgroup__label">Boşlar</span><div class="history-topic-grid">${blankCards}</div></div>`;
-
-      return `<div class="history-topic-altgrup">${inner}</div>`;
-    }).join('');
-
-    if (!altlarHtml.trim()) return '';
-    return `<div class="history-topic-kategori"><h5>${dersDef.label}</h5>${altlarHtml}</div>`;
-  }).join('');
-}
-
 function renderHistoryTable() {
   const tbody = el("historyTableBody");
   const reversed = [...state.denemeler].reverse();
@@ -673,13 +533,14 @@ function renderHistoryTable() {
 
   tbody.innerHTML = reversed.map((d, index) => {
     let detailsHtml = '';
-
+    
+    // 1. Ders Bazlı Doğru, Yanlış, Boş ve Netler
     if (d.dersler && Object.keys(d.dersler).length > 0) {
       const derslerHtml = Object.values(d.dersler).map(ders => {
         let altHtml = '';
         if (ders.altDersler) {
           altHtml = `<div style="margin-top: 6px; font-size: 0.8rem; color: var(--text-muted); display: flex; flex-direction: column; gap: 3px;">` +
-            Object.values(ders.altDersler).map(alt =>
+            Object.values(ders.altDersler).map(alt => 
               `<div>• <strong>${alt.baslik}:</strong> ${alt.dogru} D / ${alt.yanlis} Y / ${alt.bos} B (${alt.net.toFixed(2)} Net)</div>`
             ).join('') + `</div>`;
         }
@@ -696,15 +557,18 @@ function renderHistoryTable() {
           </div>
         `;
       }).join('');
-
+      
       detailsHtml += `<h4 style="margin-bottom: 10px; font-size: 0.95rem; font-weight: 800;">Ders Bazlı Sonuçlar</h4><div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; margin-bottom: 20px;">${derslerHtml}</div>`;
     }
 
-    const konularList = getKonularForDeneme(d);
-    const konuYapisi = d.tur === "AYT" ? AYT_KONU_YAPISI : TYT_KONU_YAPISI;
-    const konuYapisiHtml = renderKonuYapisiHtml(konularList, konuYapisi);
-    if (konuYapisiHtml.trim()) {
-      detailsHtml += `<h4 style="margin-bottom: 10px; font-size: 0.95rem; font-weight: 800;">Yanlış ve Boş Bırakılan Konular</h4>${konuYapisiHtml}`;
+    // 2. Konu Detayları (Yanlış ve Boşlar)
+    if (d.konuDetaylari && Object.keys(d.konuDetaylari).length > 0) {
+      const cardsHtml = Object.entries(d.konuDetaylari).map(([key, val]) => {
+         const isBlank = key.includes('_blank_');
+         const typeStr = isBlank ? 'Boş:' : 'Yanlış:';
+         return `<div class="history-topic-card ${isBlank ? 'is-blank' : ''}"><span>${typeStr}</span> ${val}</div>`;
+      }).join('');
+      detailsHtml += `<h4 style="margin-bottom: 10px; font-size: 0.95rem; font-weight: 800;">Yanlış ve Boş Bırakılan Konular</h4><div class="history-topic-grid">${cardsHtml}</div>`;
     } else {
       detailsHtml += '<p class="empty-text">Bu deneme için kaydedilmiş yanlış veya boş konu detayı bulunmuyor.</p>';
     }
@@ -730,7 +594,7 @@ function renderHistoryTable() {
 
   tbody.querySelectorAll(".delete-btn").forEach((btn) => {
     btn.addEventListener("click", async (e) => {
-      e.stopPropagation();
+      e.stopPropagation(); 
       if (confirm("Bu denemeyi silmek istediğinize emin misiniz?")) {
         await deleteDeneme(state.user.uid, btn.dataset.id);
         showToast("Deneme silindi.", "success");
@@ -743,333 +607,238 @@ function renderHistoryTable() {
       const idx = row.dataset.index;
       const detailRow = el(`details-${idx}`);
       const isVisible = detailRow.style.display === 'table-row';
-      document.querySelectorAll(".history-details-row").forEach(r => r.style.display = 'none');
+      document.querySelectorAll(".history-details-row").forEach(r => r.style.display = 'none'); 
       if (!isVisible) detailRow.style.display = 'table-row';
     });
   });
 }
 
 /* ------------------------------------------------------------
-   ANALİZ — DERS TANIMLARI
+   ANALİZ SEKSİYONU
 ------------------------------------------------------------- */
-const TYT_GENEL_DERSLER = [
-  { key: "turkce", label: "Türkçe" },
-  { key: "sosyal", label: "Sosyal Bilimler" },
-  { key: "matematik", label: "Matematik" },
-  { key: "fen", label: "Fen Bilimleri" },
-];
-const AYT_GENEL_DERSLER = [
-  { key: "matematik", label: "Matematik" },
-  { key: "fen", label: "Fen Bilimleri" },
-];
-
-const MATEMATIK_TABS = [
-  { altDers: null, label: "Genel" },
-  { altDers: "matematikSub", label: "Matematik" },
-  { altDers: "geometri", label: "Geometri" },
-];
-const FEN_TABS = [
-  { altDers: null, label: "Genel" },
-  { altDers: "fizik", label: "Fizik" },
-  { altDers: "kimya", label: "Kimya" },
-  { altDers: "biyoloji", label: "Biyoloji" },
-];
-
-// hasTopics: false olan dersler (Sosyal Bilimler) için konu girişi
-// hiç yapılmadığından, detay kartında "Son Yanlış/Boş Konular" ve
-// "En Çok Yanlış/Boş Yapılan 5 Konu" bölümleri gösterilmez — sadece
-// ortalama Doğru/Yanlış/Boş/Net istatistiği gösterilir.
-const TYT_DETAY_GRUPLARI = [
-  { ders: "turkce", label: "Türkçe", tabs: null, hasTopics: true },
-  { ders: "sosyal", label: "Sosyal Bilimler", tabs: null, hasTopics: false },
-  { ders: "matematik", label: "Matematik", tabs: MATEMATIK_TABS, hasTopics: true },
-  { ders: "fen", label: "Fen Bilimleri", tabs: FEN_TABS, hasTopics: true },
-];
-const AYT_DETAY_GRUPLARI = [
-  { ders: "matematik", label: "Matematik", tabs: MATEMATIK_TABS, hasTopics: true },
-  { ders: "fen", label: "Fen Bilimleri", tabs: FEN_TABS, hasTopics: true },
-];
-
-/* ------------------------------------------------------------
-   ANALİZ — HESAPLAMA YARDIMCILARI (Yapay zeka YOK — tüm hesaplar
-   Firestore'dan çekilen denemeler üzerinden istemci tarafında
-   yapılır)
-------------------------------------------------------------- */
-function getDersStat(deneme, ders, altDers) {
-  const d = deneme.dersler && deneme.dersler[ders];
-  if (!d) return null;
-  if (!altDers) return { dogru: d.dogru || 0, yanlis: d.yanlis || 0, bos: d.bos || 0, net: d.net || 0 };
-  const alt = d.altDersler && d.altDersler[altDers];
-  if (!alt) return null;
-  return { dogru: alt.dogru || 0, yanlis: alt.yanlis || 0, bos: alt.bos || 0, net: alt.net || 0 };
-}
-
-function computeAverageStats(denemelerOfType, ders, altDers) {
-  let count = 0, sD = 0, sY = 0, sB = 0, sN = 0;
-  denemelerOfType.forEach((deneme) => {
-    const s = getDersStat(deneme, ders, altDers);
-    if (!s) return;
-    count++; sD += s.dogru; sY += s.yanlis; sB += s.bos; sN += s.net;
-  });
-  if (count === 0) return null;
-  return { count, avgDogru: sD / count, avgYanlis: sY / count, avgBos: sB / count, avgNet: sN / count };
-}
-
-function getKonuListesi(denemelerOfType, ders, altDers, tip) {
-  const list = [];
-  denemelerOfType.forEach((deneme) => {
-    getKonularForDeneme(deneme).forEach((k) => {
-      if (k.ders !== ders) return;
-      if (altDers && k.altDers !== altDers) return; // altDers belirtilmediyse (genel) tüm alt dersler dahil
-      if (k.tip !== tip) return;
-      list.push({ konu: k.konu, denemeAdi: deneme.denemeAdi, tarih: deneme.tarih });
-    });
-  });
-  list.sort((a, b) => (b.tarih || "").localeCompare(a.tarih || ""));
-  return list;
-}
-
-// Konu adlarını büyük/küçük harf duyarsız, karakter bazlı pozisyonel
-// benzerlik oranına göre kümeler (kullanıcının yazım farklarına
-// toleranslı olacak şekilde) — eşik %70.
-function turkishLower(str) {
-  return (str || "").toLocaleLowerCase('tr-TR').trim();
-}
-
-function topicSimilarity(a, b) {
-  const s1 = turkishLower(a), s2 = turkishLower(b);
-  const maxLen = Math.max(s1.length, s2.length);
-  if (maxLen === 0) return 0;
-  const minLen = Math.min(s1.length, s2.length);
-  let matches = 0;
-  for (let i = 0; i < minLen; i++) if (s1[i] === s2[i]) matches++;
-  return matches / maxLen;
-}
-
-function clusterAndRankTopics(konuStrings, limit = 5) {
-  const clusters = [];
-  konuStrings.forEach((konu) => {
-    const found = clusters.find(c => topicSimilarity(c.representative, konu) >= 0.7);
-    if (found) found.count++;
-    else clusters.push({ representative: konu, count: 1 });
-  });
-  return clusters.sort((a, b) => b.count - a.count).slice(0, limit);
-}
-
-/* ------------------------------------------------------------
-   ANALİZ — GENEL ANALİZ RENDER
-------------------------------------------------------------- */
-function renderGenelAnalizBlock(bodyEl, denemelerOfType, dersListDef, turLabel) {
-  if (denemelerOfType.length === 0) {
-    bodyEl.innerHTML = `<p class="empty-text">Daha önce ${turLabel} denemesi eklenmemiş.</p>`;
-    return;
+document.addEventListener('click', (e) => {
+  const dropdown = el('denemeDropdown');
+  const dropdownOptionsList = el('dropdownOptionsList');
+  if (dropdown && !dropdown.contains(e.target) && dropdownOptionsList) {
+      dropdownOptionsList.classList.remove('show');
   }
-
-  const rows = dersListDef.map((d) => ({ label: d.label, stat: computeAverageStats(denemelerOfType, d.key, null) }))
-    .filter(r => r.stat);
-
-  if (rows.length === 0) {
-    bodyEl.innerHTML = `<p class="empty-text">Daha önce ${turLabel} denemesi eklenmemiş.</p>`;
-    return;
-  }
-
-  const mostWrong = rows.reduce((max, r) => r.stat.avgYanlis > max.stat.avgYanlis ? r : max, rows[0]);
-  const mostBlank = rows.reduce((max, r) => r.stat.avgBos > max.stat.avgBos ? r : max, rows[0]);
-  const avgToplamDogru = denemelerOfType.reduce((s, x) => s + (x.toplamDogru || 0), 0) / denemelerOfType.length;
-  const avgToplamYanlis = denemelerOfType.reduce((s, x) => s + (x.toplamYanlis || 0), 0) / denemelerOfType.length;
-
-  let html = `
-    <div class="genel-analiz-highlight-row">
-      <div class="genel-analiz-highlight">
-        <span class="genel-analiz-highlight__label">En Çok Yanlış Yaptığın Ders</span>
-        <span class="genel-analiz-highlight__value">${mostWrong.label}</span>
-        <span class="genel-analiz-highlight__sub">Ort. ${mostWrong.stat.avgYanlis.toFixed(2)} yanlış</span>
-      </div>
-      <div class="genel-analiz-highlight">
-        <span class="genel-analiz-highlight__label">En Çok Boş Bıraktığın Ders</span>
-        <span class="genel-analiz-highlight__value">${mostBlank.label}</span>
-        <span class="genel-analiz-highlight__sub">Ort. ${mostBlank.stat.avgBos.toFixed(2)} boş</span>
-      </div>
-    </div>
-    <div class="genel-analiz-highlight-row">
-      <div class="genel-analiz-highlight">
-        <span class="genel-analiz-highlight__label">Ortalama Toplam Doğru</span>
-        <span class="genel-analiz-highlight__value">${avgToplamDogru.toFixed(2)}</span>
-      </div>
-      <div class="genel-analiz-highlight">
-        <span class="genel-analiz-highlight__label">Ortalama Toplam Yanlış</span>
-        <span class="genel-analiz-highlight__value">${avgToplamYanlis.toFixed(2)}</span>
-      </div>
-    </div>
-    <div class="genel-analiz-subject-grid">
-  `;
-
-  rows.forEach((r) => {
-    html += `
-      <div class="genel-analiz-subject-card">
-        <span class="genel-analiz-subject-card__title">${r.label}</span>
-        <div class="genel-analiz-subject-card__stats">
-          <div><span>Ort. Doğru</span><strong>${r.stat.avgDogru.toFixed(2)}</strong></div>
-          <div><span>Ort. Yanlış</span><strong>${r.stat.avgYanlis.toFixed(2)}</strong></div>
-          <div><span>Ort. Boş</span><strong>${r.stat.avgBos.toFixed(2)}</strong></div>
-          <div><span>Ort. Net</span><strong>${r.stat.avgNet.toFixed(2)}</strong></div>
-        </div>
-      </div>`;
-  });
-
-  html += `</div>`;
-  bodyEl.innerHTML = html;
-}
-
-function renderGenelAnaliz() {
-  const tytExams = state.denemeler.filter(d => d.tur === "TYT");
-  const aytExams = state.denemeler.filter(d => d.tur === "AYT");
-  renderGenelAnalizBlock(el("genelAnalizTyt").querySelector(".genel-analiz-block__body"), tytExams, TYT_GENEL_DERSLER, "TYT");
-  renderGenelAnalizBlock(el("genelAnalizAyt").querySelector(".genel-analiz-block__body"), aytExams, AYT_GENEL_DERSLER, "AYT");
-}
-
-/* ------------------------------------------------------------
-   ANALİZ — DERS BAZLI DETAY RENDER
-------------------------------------------------------------- */
-function renderKonuRow(item, isBlank) {
-  return `
-    <div class="konu-row ${isBlank ? 'is-blank' : ''}">
-      <span class="konu-row__name">${item.konu}</span>
-      <span class="konu-row__meta">${item.denemeAdi || ''} · ${item.tarih || ''}</span>
-    </div>`;
-}
-
-function renderTopList(clusters) {
-  if (clusters.length === 0) return `<p class="empty-text">Veri bulunamadı.</p>`;
-  return `<div class="konu-rank-list">` + clusters.map((c, i) => `
-    <div class="konu-rank-item">
-      <span class="konu-rank-item__badge">${i + 1}</span>
-      <span class="konu-rank-item__name">${c.representative}</span>
-      <span class="konu-rank-item__count">${c.count} kez</span>
-    </div>`).join('') + `</div>`;
-}
-
-function renderDetailCardBody(bodyEl, denemelerOfType, ders, altDers, label, hasTopics = true) {
-  const stat = computeAverageStats(denemelerOfType, ders, altDers);
-  if (!stat) {
-    bodyEl.innerHTML = `<p class="empty-text">${label} için veri bulunamadı.</p>`;
-    return;
-  }
-
-  const statsHtml = `
-    <div class="ders-detay-stats">
-      <div><span>Ort. Doğru</span><strong>${stat.avgDogru.toFixed(2)}</strong></div>
-      <div><span>Ort. Yanlış</span><strong>${stat.avgYanlis.toFixed(2)}</strong></div>
-      <div><span>Ort. Boş</span><strong>${stat.avgBos.toFixed(2)}</strong></div>
-      <div><span>Ort. Net</span><strong>${stat.avgNet.toFixed(2)}</strong></div>
-    </div>
-  `;
-
-  // Sosyal Bilimler gibi konu girişi olmayan dersler için sadece
-  // ortalama istatistik kartı gösterilir, konu listeleri hiç basılmaz.
-  if (!hasTopics) {
-    bodyEl.innerHTML = statsHtml;
-    return;
-  }
-
-  const wrongList = getKonuListesi(denemelerOfType, ders, altDers, "yanlis");
-  const blankList = getKonuListesi(denemelerOfType, ders, altDers, "bos");
-  const topWrong = clusterAndRankTopics(wrongList.map(x => x.konu), 5);
-  const topBlank = clusterAndRankTopics(blankList.map(x => x.konu), 5);
-  const groupId = `${ders}_${altDers || 'genel'}`.replace(/[^a-zA-Z0-9_]/g, '');
-
-  bodyEl.innerHTML = statsHtml + `
-    <div class="ders-detay-columns">
-      <div class="ders-detay-column">
-        <h4>Son Yanlış Yaptığın Konular</h4>
-        <div class="konu-list">
-          ${wrongList.length ? wrongList.slice(0, 10).map(item => renderKonuRow(item, false)).join('') : '<p class="empty-text">Veri bulunamadı.</p>'}
-        </div>
-        ${wrongList.length > 10 ? `<button type="button" class="btn-neo btn-neo--sm konu-show-all-btn" data-target="wrongAll_${groupId}">Tümünü Gör</button>` : ''}
-        <div class="konu-list-all" id="wrongAll_${groupId}" hidden>
-          ${wrongList.map(item => renderKonuRow(item, false)).join('')}
-        </div>
-        <h4 style="margin-top:16px;">En Çok Yanlış Yapılan 5 Konu</h4>
-        ${renderTopList(topWrong)}
-      </div>
-      <div class="ders-detay-column">
-        <h4>Son Boş Bıraktığın Konular</h4>
-        <div class="konu-list">
-          ${blankList.length ? blankList.slice(0, 10).map(item => renderKonuRow(item, true)).join('') : '<p class="empty-text">Veri bulunamadı.</p>'}
-        </div>
-        ${blankList.length > 10 ? `<button type="button" class="btn-neo btn-neo--sm konu-show-all-btn" data-target="blankAll_${groupId}">Tümünü Gör</button>` : ''}
-        <div class="konu-list-all" id="blankAll_${groupId}" hidden>
-          ${blankList.map(item => renderKonuRow(item, true)).join('')}
-        </div>
-        <h4 style="margin-top:16px;">En Çok Boş Bırakılan 5 Konu</h4>
-        ${renderTopList(topBlank)}
-      </div>
-    </div>
-  `;
-
-  bodyEl.querySelectorAll(".konu-show-all-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const target = el(btn.dataset.target);
-      const isHidden = target.hidden;
-      target.hidden = !isHidden;
-      btn.textContent = isHidden ? "Gizle" : "Tümünü Gör";
-    });
-  });
-}
-
-function renderDersBazliAnaliz() {
-  const tur = el("dersAnalizTurFilter").value;
-  const denemelerOfType = state.denemeler.filter(d => d.tur === tur);
-  const gruplar = tur === "TYT" ? TYT_DETAY_GRUPLARI : AYT_DETAY_GRUPLARI;
-  const container = el("dersBazliAnalizContainer");
-  container.innerHTML = "";
-
-  if (denemelerOfType.length === 0) {
-    container.innerHTML = `<p class="empty-text">Daha önce ${tur} denemesi eklenmemiş.</p>`;
-    return;
-  }
-
-  gruplar.forEach((grup) => {
-    const card = document.createElement("div");
-    card.className = "ders-detay-card";
-
-    let headerHtml = `<div class="ders-detay-card__header"><h3>${grup.label}</h3>`;
-    if (grup.tabs) {
-      headerHtml += `<div class="ders-detay-tabs">` + grup.tabs.map((t, i) =>
-        `<button type="button" class="ders-detay-tab ${i === 0 ? 'is-active' : ''}" data-alt="${t.altDers || ''}">${t.label}</button>`
-      ).join('') + `</div>`;
-    }
-    headerHtml += `</div>`;
-
-    card.innerHTML = headerHtml + `<div class="ders-detay-card__body"></div>`;
-    container.appendChild(card);
-
-    const bodyEl = card.querySelector(".ders-detay-card__body");
-
-    if (grup.tabs) {
-      const tabBtns = card.querySelectorAll(".ders-detay-tab");
-      tabBtns.forEach((btn) => {
-        btn.addEventListener("click", () => {
-          tabBtns.forEach(b => b.classList.remove("is-active"));
-          btn.classList.add("is-active");
-          const altDers = btn.dataset.alt || null;
-          const tabDef = grup.tabs.find(t => (t.altDers || '') === (altDers || ''));
-          renderDetailCardBody(bodyEl, denemelerOfType, grup.ders, altDers, `${grup.label} - ${tabDef.label}`, grup.hasTopics);
-        });
-      });
-      renderDetailCardBody(bodyEl, denemelerOfType, grup.ders, null, `${grup.label} - Genel`, grup.hasTopics);
-    } else {
-      renderDetailCardBody(bodyEl, denemelerOfType, grup.ders, null, grup.label, grup.hasTopics);
-    }
-  });
-}
-
-el("dersAnalizTurFilter").addEventListener("change", () => {
-  renderDersBazliAnaliz();
 });
 
-function renderAnalizView() {
-  renderGenelAnaliz();
-  initCustomSelect(el("dersAnalizTurFilter"));
-  renderDersBazliAnaliz();
+function populateAnalysisDropdown() {
+  const dropdownSelectedText = el("dropdownSelectedText");
+  const dropdownOptionsList = el("dropdownOptionsList");
+  
+  if (!dropdownSelectedText || !dropdownOptionsList) return;
+
+  const newSelectedText = dropdownSelectedText.cloneNode(true);
+  dropdownSelectedText.parentNode.replaceChild(newSelectedText, dropdownSelectedText);
+  
+  newSelectedText.addEventListener('click', (e) => {
+    e.stopPropagation();
+    dropdownOptionsList.classList.toggle('show');
+  });
+
+  dropdownOptionsList.innerHTML = ''; 
+
+  if (state.denemeler.length === 0) {
+    newSelectedText.innerHTML = `Henüz deneme yok... <span style="font-size: 12px;">▼</span>`;
+    return;
+  }
+
+  newSelectedText.innerHTML = `Analiz için bir deneme seçin... <span style="font-size: 12px;">▼</span>`;
+  newSelectedText.dataset.selectedId = "";
+
+  state.denemeler.forEach((d) => {
+    const li = document.createElement('li');
+    li.textContent = `${d.tarih} - ${d.denemeAdi} (${d.tur})`;
+    
+    li.onclick = (e) => {
+      e.stopPropagation();
+      newSelectedText.innerHTML = `${d.tarih} - ${d.denemeAdi} (${d.tur}) <span style="font-size: 12px;">▼</span>`;
+      newSelectedText.dataset.selectedId = d.id;
+      dropdownOptionsList.classList.remove('show');
+    };
+    
+    dropdownOptionsList.appendChild(li);
+  });
 }
+
+el("runSingleAnalysisBtn").addEventListener("click", async () => {
+  const dropdownSelectedText = el("dropdownSelectedText");
+  const id = dropdownSelectedText ? dropdownSelectedText.dataset.selectedId : null;
+  
+  if (!id) { showToast("Lütfen bir deneme seçin.", "error"); return; }
+
+  const selectedExam = state.denemeler.find((d) => d.id === id);
+  const box = el("singleAnalysisOutput");
+  box.innerHTML = "Analiz yapılıyor... Lütfen bekleyin.";
+
+  try {
+    const res = await analyzeSingleExam(selectedExam, state.denemeler);
+    box.innerHTML = `<h4>${selectedExam.denemeAdi} Analiz Sonucu</h4><p><strong>Genel Durum:</strong> ${res.genelOrtalamayaGoreDurum}</p><p>${res.genelYorum}</p>`;
+    await updateDenemeAiNote(state.user.uid, selectedExam.id, res.genelYorum);
+    autoUpdateRoadmap();
+  } catch (err) {
+    box.innerHTML = `<span style="color: var(--danger)">Yapay zeka ağına ulaşılamadı. Lütfen tekrar deneyiniz.</span>`;
+  }
+});
+
+el("runChronicAnalysisBtn").addEventListener("click", async () => {
+  if (state.denemeler.length < 2) { showToast("En az 2 deneme kaydı gerekiyor.", "error"); return; }
+  const box = el("chronicAnalysisOutput");
+  box.innerHTML = "Tüm denemeler taranıyor... Lütfen bekleyin.";
+  try {
+    const res = await analyzeChronicPatterns(state.denemeler);
+    box.innerHTML = `<p>${res.genelDegerlendirme}</p>`;
+    autoUpdateRoadmap();
+  } catch (err) {
+    box.innerHTML = `<span style="color: var(--danger)">Kronik analiz yapılırken bir hata oluştu. Lütfen tekrar deneyiniz.</span>`;
+  }
+});
+
+async function autoUpdateRoadmap() {
+  const box = el("roadmapOutput");
+  if (state.denemeler.length === 0) {
+    box.innerHTML = `<p class="empty-text">Henüz deneme bulunmadığı için yol haritası oluşturulamadı.</p>`;
+    return;
+  }
+  try {
+    const res = await analyzeChronicPatterns(state.denemeler);
+    if (res.yolHaritasi && res.yolHaritasi.length) {
+      box.innerHTML = res.yolHaritasi.map((step) => `<p><strong>Adım ${step.adim}: ${step.baslik}</strong> - ${step.aciklama}</p>`).join("");
+    } else {
+      box.innerHTML = "<p>Mevcut netlerinize göre düzenli deneme çözmeye devam edin.</p>";
+    }
+  } catch (e) {
+    box.innerHTML = `<span style="color: var(--danger)">Yol haritası güncellenirken hata oluştu.</span>`;
+  }
+}
+
+/* ------------------------------------------------------------
+   PDF İLE OTOMATİK OKUMA: yükle -> önizle -> onaylarsan kaydet
+------------------------------------------------------------- */
+const escapeHtml = (v) =>
+  String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+let pendingPdf = null; // onay bekleyen { denemeData, konuGruplari, warnings, ogrenci }
+
+function setPdfStatus(message, isError = false) {
+  const box = el("pdfStatus");
+  box.hidden = !message;
+  box.textContent = message || "";
+  box.classList.toggle("is-error", isError);
+}
+
+function resetPdfPanel() {
+  pendingPdf = null;
+  el("pdfPreview").hidden = true;
+  el("pdfPreview").innerHTML = "";
+  el("pdfDropzone").hidden = false;
+  setPdfStatus("");
+}
+
+async function handlePdfFile(file) {
+  if (!file) return;
+  if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+    setPdfStatus("Lütfen bir PDF dosyası seçin.", true);
+    return;
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    setPdfStatus("PDF en fazla 10 MB olabilir.", true);
+    return;
+  }
+  setPdfStatus("PDF okunuyor...");
+  try {
+    pendingPdf = await parseExamPdf(file, { alan: state.userAlan });
+    setPdfStatus("");
+    renderPdfPreview();
+  } catch (err) {
+    console.error(err);
+    pendingPdf = null;
+    setPdfStatus(err.message || "PDF okunamadı.", true);
+  }
+}
+
+function renderPdfPreview() {
+  const { denemeData: d, konuGruplari, warnings, ogrenci } = pendingPdf;
+
+  const warningHtml = warnings.length
+    ? `<div class="pdf-warning">Kaydetmeden önce kontrol et:<ul>${warnings.map((w) => `<li>${escapeHtml(w)}</li>`).join("")}</ul></div>`
+    : "";
+
+  const dersHtml = Object.values(d.dersler).map((ders) => {
+    const subs = ders.altDersler
+      ? `<div class="pdf-ders-card__subs">${Object.values(ders.altDersler).map((a) =>
+          `<div>• <strong>${escapeHtml(a.baslik)}:</strong> ${a.dogru} D / ${a.yanlis} Y / ${a.bos} B (${a.net.toFixed(2)} Net)</div>`).join("")}</div>`
+      : "";
+    return `<div class="pdf-ders-card">
+      <div class="pdf-ders-card__top"><span>${escapeHtml(ders.baslik)}</span><span>${ders.net.toFixed(2)} Net</span></div>
+      <div class="pdf-ders-card__line">${ders.dogru} Doğru | ${ders.yanlis} Yanlış | ${ders.bos} Boş</div>${subs}</div>`;
+  }).join("");
+
+  const topicHtml = konuGruplari.filter((g) => g.yanlis.length || g.bos.length).map((g) => `
+    <div class="pdf-topic-group">
+      <h4>${escapeHtml(g.ders)}<small>${g.yanlis.length} yanlış, ${g.bos.length} boş</small></h4>
+      <div class="history-topic-grid">
+        ${g.yanlis.map((k) => `<div class="history-topic-card"><span>Yanlış:</span> ${escapeHtml(k)}</div>`).join("")}
+        ${g.bos.map((k) => `<div class="history-topic-card is-blank"><span>Boş:</span> ${escapeHtml(k)}</div>`).join("")}
+      </div>
+    </div>`).join("");
+
+  el("pdfPreview").innerHTML = `
+    ${warningHtml}
+    ${ogrenci ? `<p class="pdf-meta">PDF'teki öğrenci: ${escapeHtml(ogrenci)}</p>` : ""}
+    <div class="form-row">
+      <div class="field-group"><label>Deneme Adı</label><input type="text" id="pdfPreviewName" value="${escapeHtml(d.denemeAdi)}"></div>
+      <div class="field-group"><label>Tarih</label><input type="date" id="pdfPreviewDate" value="${escapeHtml(d.tarih)}"></div>
+      <div class="field-group"><label>Sınav Türü</label><input type="text" readonly value="${escapeHtml(d.tur)}"></div>
+    </div>
+    <div class="total-summary-card">
+      <div class="summary-item"><span>Toplam Doğru</span><strong>${d.toplamDogru}</strong></div>
+      <div class="summary-item"><span>Toplam Yanlış</span><strong>${d.toplamYanlis}</strong></div>
+      <div class="summary-item"><span>Toplam Boş</span><strong>${d.toplamBos}</strong></div>
+      <div class="summary-item summary-item--highlight"><span>Toplam Sınav Neti</span><strong>${d.toplamNet.toFixed(2)}</strong></div>
+    </div>
+    <div class="pdf-ders-grid">${dersHtml}</div>
+    ${topicHtml ? `<div><h3 style="font-size:1rem;font-weight:700;color:var(--text-muted)">Yanlış ve Boş Bırakılan Konular</h3>${topicHtml}</div>` : ""}
+    <div class="pdf-actions">
+      <button type="button" id="pdfCancelBtn" class="btn-neo btn-neo--lg">İptal</button>
+      <button type="button" id="pdfConfirmBtn" class="btn-neo btn-neo--primary btn-neo--lg">Onayla ve Kaydet</button>
+    </div>`;
+
+  el("pdfDropzone").hidden = true;
+  el("pdfPreview").hidden = false;
+  el("pdfCancelBtn").addEventListener("click", resetPdfPanel);
+  el("pdfConfirmBtn").addEventListener("click", confirmPdfSave);
+}
+
+async function confirmPdfSave() {
+  if (!pendingPdf || !state.user) return;
+  const denemeAdi = el("pdfPreviewName").value.trim();
+  const tarih = el("pdfPreviewDate").value;
+  if (!denemeAdi || !tarih) { showToast("Deneme adı ve tarih boş olamaz.", "error"); return; }
+
+  const duplicate = state.denemeler.some((x) => x.tarih === tarih && x.denemeAdi === denemeAdi);
+  if (duplicate && !confirm("Aynı isim ve tarihte bir deneme zaten kayıtlı. Yine de eklensin mi?")) return;
+
+  const btn = el("pdfConfirmBtn");
+  btn.disabled = true;
+  try {
+    await addDeneme(state.user.uid, { ...pendingPdf.denemeData, denemeAdi, tarih });
+    showToast("Deneme PDF'ten başarıyla kaydedildi.", "success");
+    resetPdfPanel();
+    document.querySelector('.sidebar__btn[data-view="history"]').click();
+  } catch (err) {
+    btn.disabled = false;
+    showToast("Hata: " + err.message, "error");
+  }
+}
+
+const pdfDropzone = el("pdfDropzone");
+const pdfFileInput = el("pdfFileInput");
+pdfDropzone.addEventListener("click", () => pdfFileInput.click());
+pdfDropzone.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pdfFileInput.click(); } });
+pdfFileInput.addEventListener("change", () => { handlePdfFile(pdfFileInput.files[0]); pdfFileInput.value = ""; });
+["dragenter", "dragover"].forEach((ev) => pdfDropzone.addEventListener(ev, (e) => { e.preventDefault(); pdfDropzone.classList.add("is-drag"); }));
+["dragleave", "drop"].forEach((ev) => pdfDropzone.addEventListener(ev, (e) => { e.preventDefault(); pdfDropzone.classList.remove("is-drag"); }));
+pdfDropzone.addEventListener("drop", (e) => handlePdfFile(e.dataTransfer.files[0]));
