@@ -11,7 +11,6 @@ import {
   signOut,
   onAuthStateChanged,
   updateProfile,
-  updatePassword,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import {
   getFirestore,
@@ -19,6 +18,7 @@ import {
   addDoc,
   deleteDoc,
   doc,
+  updateDoc,
   onSnapshot,
   query,
   serverTimestamp,
@@ -56,15 +56,6 @@ export function logoutUser() {
   return signOut(auth);
 }
 
-// E-posta + eski şifre ile yeniden kimlik doğrulama yapıp şifreyi
-// günceller. signInWithEmailAndPassword önceden oturum açmayı
-// gerektirmez; bu sayede "Şifremi Unuttum" ekranından da çalışır.
-export async function changeUserPassword(email, oldPassword, newPassword) {
-  const credential = await signInWithEmailAndPassword(auth, email, oldPassword);
-  await updatePassword(credential.user, newPassword);
-  return credential.user;
-}
-
 export function watchAuthState(callback) {
   return onAuthStateChanged(auth, callback);
 }
@@ -84,6 +75,10 @@ export async function addDeneme(userId, denemeData) {
 
 export function deleteDeneme(userId, denemeId) {
   return deleteDoc(doc(db, "users", userId, "denemeler", denemeId));
+}
+
+export function updateDenemeAiNote(userId, denemeId, aiAnalizNotu) {
+  return updateDoc(doc(db, "users", userId, "denemeler", denemeId), { aiAnalizNotu });
 }
 
 // İndex çakışmalarını önlemek için sorgu sadeleştirildi, sıralama JS tarafına alındı
