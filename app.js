@@ -2,16 +2,10 @@
 // app.js - Uygulama Mantığı & Firestore Bağlantısı
 // ============================================================
 
-import * as fb from "./firebase-config.js";
-
-// Eski bir firebase-config.js yüklü olsa bile uygulama çökmesin diye isim isim alınır
-const { auth, registerUser, loginUser, logoutUser, watchAuthState, addDeneme, deleteDeneme, watchDenemeler } = fb;
-const updateDenemeAiNote = fb.updateDenemeAiNote || (async () => {});
-if (!fb.updateDenemeAiNote) console.warn("[Defter] firebase-config.js eski sürüm: updateDenemeAiNote yok, dosyayı güncelle.");
-
-// gemini-service.js eksik/bozuk olsa bile uygulama açılsın diye sadece kullanılınca yüklenir
-const analyzeSingleExam = async (...args) => (await import("./gemini-service.js")).analyzeSingleExam(...args);
-const analyzeChronicPatterns = async (...args) => (await import("./gemini-service.js")).analyzeChronicPatterns(...args);
+import {
+  auth, registerUser, loginUser, logoutUser, watchAuthState,
+  addDeneme, deleteDeneme, watchDenemeler,
+} from "./firebase-config.js";
 
 /* ------------------------------------------------------------
    ÖZEL SEÇİM MENÜSÜ KONTROLCÜSÜ (CUSTOM SELECT UI)
@@ -22,33 +16,33 @@ class CustomSelect {
     this.originalSelect.style.display = 'none';
     this.wrapper = document.createElement('div');
     this.wrapper.className = 'neo-select';
-    
+
     this.trigger = document.createElement('div');
     this.trigger.className = 'neo-select__trigger';
-    
+
     this.optionsContainer = document.createElement('div');
     this.optionsContainer.className = 'neo-select__options';
-    
+
     this.wrapper.appendChild(this.trigger);
     this.wrapper.appendChild(this.optionsContainer);
     this.originalSelect.parentNode.insertBefore(this.wrapper, this.originalSelect.nextSibling);
-    
+
     this.render();
     this.setupEvents();
   }
-  
+
   render() {
     this.optionsContainer.innerHTML = '';
     const options = Array.from(this.originalSelect.options);
     let selectedText = options.length > 0 ? options[0].text : '';
-    
+
     options.forEach(opt => {
       if (opt.selected) selectedText = opt.text;
       const optDiv = document.createElement('div');
       optDiv.className = 'neo-select__option' + (opt.selected ? ' is-selected' : '') + (opt.disabled ? ' is-disabled' : '');
       optDiv.textContent = opt.text;
       optDiv.dataset.value = opt.value;
-      
+
       if (!opt.disabled) {
         optDiv.addEventListener('click', (e) => {
           e.stopPropagation();
@@ -60,10 +54,10 @@ class CustomSelect {
       }
       this.optionsContainer.appendChild(optDiv);
     });
-    
+
     this.trigger.innerHTML = `<span>${selectedText}</span> <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>`;
   }
-  
+
   setupEvents() {
     this.trigger.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -73,7 +67,7 @@ class CustomSelect {
     });
     document.addEventListener('click', () => this.wrapper.classList.remove('is-open'));
   }
-  
+
   close() { this.wrapper.classList.remove('is-open'); }
 }
 
@@ -93,17 +87,7 @@ const state = {
   user: null, userAlan: "sayisal", denemeler: [],
   unsubscribeDenemeler: null, chart: null,
 };
-// Eksik bir eleman yüzünden tüm uygulamanın çökmesini engeller; konsola hangisinin eksik olduğunu yazar
-const _missingWarned = new Set();
-const el = (id) => {
-  const node = document.getElementById(id);
-  if (node) return node;
-  if (!_missingWarned.has(id)) {
-    _missingWarned.add(id);
-    console.warn("[Defter] index.html'de eksik eleman: #" + id);
-  }
-  return document.createElement("div"); // boş yedek eleman
-};
+const el = (id) => document.getElementById(id);
 
 /* ------------------------------------------------------------
    GÖRÜNÜM KONTROLLERİ
@@ -148,7 +132,7 @@ el("loginForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   try {
     await loginUser(el("loginEmail").value.trim(), el("loginPassword").value);
-    showToast("Başarıyla giriş yaptınız.", "success", 500); 
+    showToast("Başarıyla giriş yaptınız.", "success", 500);
   } catch (err) {
     el("authError").textContent = "Giriş başarısız. E-posta veya şifre hatalı.";
     el("authError").hidden = false;
@@ -161,7 +145,7 @@ el("registerForm").addEventListener("submit", async (e) => {
     const name = el("registerName").value.trim();
     const alan = el("registerAlan").value;
     await registerUser(name, el("registerEmail").value.trim(), el("registerPassword").value, alan);
-    showToast("Kayıt olma başarılı.", "success", 500); 
+    showToast("Kayıt olma başarılı.", "success", 500);
   } catch (err) {
     el("authError").textContent = "Kayıt olunamadı: " + err.message;
     el("authError").hidden = false;
@@ -182,16 +166,23 @@ watchAuthState((user) => {
     const displayName = user.displayName || user.email.split("@")[0];
     el("userDisplayName").textContent = displayName;
     el("userAvatarInitial").textContent = displayName.charAt(0).toUpperCase();
-    
+
     state.userAlan = user.photoURL || "sayisal";
     const alanNames = { sayisal: "Sayısal", ea: "Eşit Ağırlık", sozel: "Sözel", dil: "Dil" };
     el("userDisplayAlan").textContent = alanNames[state.userAlan] || "Sayısal";
 
+    // NOT: Her render fonksiyonu ayrı try/catch içine alındı.
+    // Önceki sürümde bunlardan biri (grafik/analiz) hata fırlatırsa
+    // zincirdeki sonraki fonksiyonlar (Deneme Geçmişi, Analiz vs.)
+    // hiç çalışmıyordu — yeni deneme kaydedilince sadece üstteki
+    // ortalama/en-yüksek-net kutucuklarının güncellenip diğerlerinin
+    // güncellenmemesi tam olarak bu yüzdendi. Artık biri patlasa da
+    // diğerleri çalışmaya devam ediyor.
     state.unsubscribeDenemeler = watchDenemeler(user.uid, (denemeler) => {
       state.denemeler = denemeler;
-      [renderDashboard, renderHistoryTable, populateAnalysisDropdown, autoUpdateRoadmap].forEach((fn) => {
-        try { fn(); } catch (err) { console.error("[Defter] " + fn.name + " hatası:", err); }
-      });
+      try { renderDashboard(); } catch (err) { console.error("Genel Bakış render hatası:", err); }
+      try { renderHistoryTable(); } catch (err) { console.error("Deneme Geçmişi render hatası:", err); }
+      try { renderAnalizView(); } catch (err) { console.error("Analiz render hatası:", err); }
     });
   } else {
     showLanding();
@@ -335,9 +326,9 @@ function calculateFormTotals() {
       const y = parseInt(card.querySelector(".input-y").value) || 0;
       const b = parseInt(card.querySelector(".input-b").value) || 0;
       cardNet = d - (y * 0.25);
-      
+
       const netInput = card.querySelector(`#${cardId}_net`);
-      if(netInput) netInput.value = cardNet.toFixed(2);
+      if (netInput) netInput.value = cardNet.toFixed(2);
 
       grandD += d; grandY += y; grandB += b;
       updateTopicFields(cardId, "", card.querySelector('.subject-card__title').textContent, y, b);
@@ -413,7 +404,34 @@ function updateSubTopicsForCard(card) {
 renderFormStructure();
 
 /* ------------------------------------------------------------
-   FORM KAYDETME (Ders Bazlı Veriler de Eklenerek Güncellendi)
+   KONU VERİSİ YARDIMCILARI
+   (Yeni kayıtlar "konular" dizisini kullanır; eski kayıtlarda
+   sadece "konuDetaylari" varsa buradan otomatik türetilir, böylece
+   geçmiş denemeler de analizde kullanılabilir.)
+------------------------------------------------------------- */
+const TOPIC_KEY_REGEX = /^([a-z]+)_([a-zA-Z]*)_(wrong|blank)_(\d+)$/;
+
+function getKonularForDeneme(deneme) {
+  if (Array.isArray(deneme.konular)) return deneme.konular;
+  const result = [];
+  if (deneme.konuDetaylari) {
+    Object.entries(deneme.konuDetaylari).forEach(([key, konu]) => {
+      if (!konu) return;
+      const m = key.match(TOPIC_KEY_REGEX);
+      if (!m) return;
+      result.push({
+        ders: m[1],
+        altDers: m[2] || null,
+        tip: m[3] === "wrong" ? "yanlis" : "bos",
+        konu,
+      });
+    });
+  }
+  return result;
+}
+
+/* ------------------------------------------------------------
+   FORM KAYDETME (Analiz için yapılandırılmış "konular" dizisi ile)
 ------------------------------------------------------------- */
 el("manualEntryForm").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -421,7 +439,6 @@ el("manualEntryForm").addEventListener("submit", async (e) => {
 
   const denemeAlani = el("entryType").value === "AYT" ? el("entryAlan").value : (state.userAlan || "sayisal");
 
-  // Ders bazlı doğru/yanlış/boş ve netlerin toplanması
   const dersler = {};
   document.querySelectorAll(".subject-card").forEach((card) => {
     const cardId = card.dataset.subjectCard;
@@ -458,6 +475,23 @@ el("manualEntryForm").addEventListener("submit", async (e) => {
     }
   });
 
+  // Konu detayları artık ders/altDers/tip bilgisiyle birlikte
+  // yapılandırılmış bir dizi olarak kaydediliyor; analiz ekranı
+  // bunu doğrudan kullanıyor.
+  const konular = [];
+  document.querySelectorAll(".topic-input-item input").forEach((inp) => {
+    const val = inp.value.trim();
+    if (!val) return;
+    const m = inp.name.match(TOPIC_KEY_REGEX);
+    if (!m) return;
+    konular.push({
+      ders: m[1],
+      altDers: m[2] || null,
+      tip: m[3] === "wrong" ? "yanlis" : "bos",
+      konu: val,
+    });
+  });
+
   const denemeData = {
     denemeAdi: el("entryName").value.trim(),
     tarih: el("entryDate").value,
@@ -467,13 +501,9 @@ el("manualEntryForm").addEventListener("submit", async (e) => {
     toplamYanlis: parseInt(el("grandTotalYanlis").textContent),
     toplamBos: parseInt(el("grandTotalBos").textContent),
     toplamNet: parseFloat(el("grandTotalNet").textContent),
-    dersler: dersler, // Ders bazlı istatistikler veritabanına kaydediliyor
-    konuDetaylari: {},
+    dersler: dersler,
+    konular: konular,
   };
-
-  document.querySelectorAll(".topic-input-item input").forEach((inp) => {
-    denemeData.konuDetaylari[inp.name] = inp.value.trim();
-  });
 
   try {
     await addDeneme(state.user.uid, denemeData);
@@ -532,8 +562,55 @@ function renderChart() {
 }
 
 /* ------------------------------------------------------------
-   GEÇMİŞ TABLOSU (Ders Bazlı Detayların Gösterildiği Alan)
+   GEÇMİŞ TABLOSU
 ------------------------------------------------------------- */
+/* ------------------------------------------------------------
+   GEÇMİŞ: DERS BAZLI YANLIŞ / BOŞ KONULAR
+   (Sosyal Bilimler'de konu girilmediği için listelenmez)
+------------------------------------------------------------- */
+function escapeHtml(v) {
+  return String(v == null ? "" : v).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+const HISTORY_TOPIC_GROUPS = [
+  { ders: "turkce", label: "Türkçe", turler: ["TYT"], subs: [{ altDers: null, label: null }] },
+  { ders: "matematik", label: "Matematik", turler: ["TYT", "AYT"], subs: [
+    { altDers: "matematikSub", label: "Matematik" }, { altDers: "geometri", label: "Geometri" },
+  ] },
+  { ders: "fen", label: "Fen Bilimleri", turler: ["TYT", "AYT"], subs: [
+    { altDers: "fizik", label: "Fizik" }, { altDers: "kimya", label: "Kimya" }, { altDers: "biyoloji", label: "Biyoloji" },
+  ] },
+];
+
+function renderHistoryTopics(d) {
+  const konular = getKonularForDeneme(d);
+  const groups = HISTORY_TOPIC_GROUPS.filter((g) => g.turler.includes(d.tur));
+  if (!konular.some((k) => groups.some((g) => g.ders === k.ders))) {
+    return '<p class="empty-text">Bu deneme için kaydedilmiş yanlış veya boş konu detayı bulunmuyor.</p>';
+  }
+
+  const kindHtml = (list, isBlank) => {
+    const title = `<div class="history-kind-title ${isBlank ? "is-blank" : ""}">${isBlank ? "Boşlar" : "Yanlışlar"}<small>(${list.length})</small></div>`;
+    if (list.length === 0) return title + '<p class="empty-text history-empty">Yok</p>';
+    return title + `<div class="history-topic-grid">${list.map((k) =>
+      `<div class="history-topic-card ${isBlank ? "is-blank" : ""}">${escapeHtml(k.konu)}</div>`).join("")}</div>`;
+  };
+
+  return `<h4 style="margin-bottom: 10px; font-size: 0.95rem; font-weight: 800;">Yanlış ve Boş Bırakılan Konular</h4>` +
+    groups.map((g) => `
+      <div class="history-ders-group">
+        <div class="history-ders-group__title">${g.label}</div>
+        ${g.subs.map((sub) => {
+          const own = konular.filter((k) => k.ders === g.ders && (!sub.altDers || k.altDers === sub.altDers));
+          return `<div class="history-sub-block">
+            ${sub.label ? `<div class="history-sub-block__title">${sub.label}</div>` : ""}
+            ${kindHtml(own.filter((k) => k.tip === "yanlis"), false)}
+            ${kindHtml(own.filter((k) => k.tip === "bos"), true)}
+          </div>`;
+        }).join("")}
+      </div>`).join("");
+}
+
 function renderHistoryTable() {
   const tbody = el("historyTableBody");
   const reversed = [...state.denemeler].reverse();
@@ -545,14 +622,13 @@ function renderHistoryTable() {
 
   tbody.innerHTML = reversed.map((d, index) => {
     let detailsHtml = '';
-    
-    // 1. Ders Bazlı Doğru, Yanlış, Boş ve Netler
+
     if (d.dersler && Object.keys(d.dersler).length > 0) {
       const derslerHtml = Object.values(d.dersler).map(ders => {
         let altHtml = '';
         if (ders.altDersler) {
           altHtml = `<div style="margin-top: 6px; font-size: 0.8rem; color: var(--text-muted); display: flex; flex-direction: column; gap: 3px;">` +
-            Object.values(ders.altDersler).map(alt => 
+            Object.values(ders.altDersler).map(alt =>
               `<div>• <strong>${alt.baslik}:</strong> ${alt.dogru} D / ${alt.yanlis} Y / ${alt.bos} B (${alt.net.toFixed(2)} Net)</div>`
             ).join('') + `</div>`;
         }
@@ -569,21 +645,11 @@ function renderHistoryTable() {
           </div>
         `;
       }).join('');
-      
+
       detailsHtml += `<h4 style="margin-bottom: 10px; font-size: 0.95rem; font-weight: 800;">Ders Bazlı Sonuçlar</h4><div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; margin-bottom: 20px;">${derslerHtml}</div>`;
     }
 
-    // 2. Konu Detayları (Yanlış ve Boşlar)
-    if (d.konuDetaylari && Object.keys(d.konuDetaylari).length > 0) {
-      const cardsHtml = Object.entries(d.konuDetaylari).map(([key, val]) => {
-         const isBlank = key.includes('_blank_');
-         const typeStr = isBlank ? 'Boş:' : 'Yanlış:';
-         return `<div class="history-topic-card ${isBlank ? 'is-blank' : ''}"><span>${typeStr}</span> ${val}</div>`;
-      }).join('');
-      detailsHtml += `<h4 style="margin-bottom: 10px; font-size: 0.95rem; font-weight: 800;">Yanlış ve Boş Bırakılan Konular</h4><div class="history-topic-grid">${cardsHtml}</div>`;
-    } else {
-      detailsHtml += '<p class="empty-text">Bu deneme için kaydedilmiş yanlış veya boş konu detayı bulunmuyor.</p>';
-    }
+    detailsHtml += renderHistoryTopics(d);
 
     return `
       <tr class="history-main-row" data-index="${index}">
@@ -606,7 +672,7 @@ function renderHistoryTable() {
 
   tbody.querySelectorAll(".delete-btn").forEach((btn) => {
     btn.addEventListener("click", async (e) => {
-      e.stopPropagation(); 
+      e.stopPropagation();
       if (confirm("Bu denemeyi silmek istediğinize emin misiniz?")) {
         await deleteDeneme(state.user.uid, btn.dataset.id);
         showToast("Deneme silindi.", "success");
@@ -619,119 +685,327 @@ function renderHistoryTable() {
       const idx = row.dataset.index;
       const detailRow = el(`details-${idx}`);
       const isVisible = detailRow.style.display === 'table-row';
-      document.querySelectorAll(".history-details-row").forEach(r => r.style.display = 'none'); 
+      document.querySelectorAll(".history-details-row").forEach(r => r.style.display = 'none');
       if (!isVisible) detailRow.style.display = 'table-row';
     });
   });
 }
 
 /* ------------------------------------------------------------
-   ANALİZ SEKSİYONU
+   ANALİZ — DERS TANIMLARI
 ------------------------------------------------------------- */
-document.addEventListener('click', (e) => {
-  const dropdown = el('denemeDropdown');
-  const dropdownOptionsList = el('dropdownOptionsList');
-  if (dropdown && !dropdown.contains(e.target) && dropdownOptionsList) {
-      dropdownOptionsList.classList.remove('show');
-  }
-});
+const TYT_GENEL_DERSLER = [
+  { key: "turkce", label: "Türkçe" },
+  { key: "sosyal", label: "Sosyal Bilimler" },
+  { key: "matematik", label: "Matematik" },
+  { key: "fen", label: "Fen Bilimleri" },
+];
+const AYT_GENEL_DERSLER = [
+  { key: "matematik", label: "Matematik" },
+  { key: "fen", label: "Fen Bilimleri" },
+];
 
-function populateAnalysisDropdown() {
-  const dropdownSelectedText = el("dropdownSelectedText");
-  const dropdownOptionsList = el("dropdownOptionsList");
-  
-  if (!dropdownSelectedText || !dropdownOptionsList) return;
+const MATEMATIK_TABS = [
+  { altDers: null, label: "Genel" },
+  { altDers: "matematikSub", label: "Matematik" },
+  { altDers: "geometri", label: "Geometri" },
+];
+const FEN_TABS = [
+  { altDers: null, label: "Genel" },
+  { altDers: "fizik", label: "Fizik" },
+  { altDers: "kimya", label: "Kimya" },
+  { altDers: "biyoloji", label: "Biyoloji" },
+];
 
-  const newSelectedText = dropdownSelectedText.cloneNode(true);
-  dropdownSelectedText.parentNode.replaceChild(newSelectedText, dropdownSelectedText);
-  
-  newSelectedText.addEventListener('click', (e) => {
-    e.stopPropagation();
-    dropdownOptionsList.classList.toggle('show');
+const TYT_DETAY_GRUPLARI = [
+  { ders: "turkce", label: "Türkçe", tabs: null },
+  { ders: "sosyal", label: "Sosyal Bilimler", tabs: null },
+  { ders: "matematik", label: "Matematik", tabs: MATEMATIK_TABS },
+  { ders: "fen", label: "Fen Bilimleri", tabs: FEN_TABS },
+];
+const AYT_DETAY_GRUPLARI = [
+  { ders: "matematik", label: "Matematik", tabs: MATEMATIK_TABS },
+  { ders: "fen", label: "Fen Bilimleri", tabs: FEN_TABS },
+];
+
+/* ------------------------------------------------------------
+   ANALİZ — HESAPLAMA YARDIMCILARI (Yapay zeka YOK — tüm hesaplar
+   Firestore'dan çekilen denemeler üzerinden istemci tarafında
+   yapılır)
+------------------------------------------------------------- */
+function getDersStat(deneme, ders, altDers) {
+  const d = deneme.dersler && deneme.dersler[ders];
+  if (!d) return null;
+  if (!altDers) return { dogru: d.dogru || 0, yanlis: d.yanlis || 0, bos: d.bos || 0, net: d.net || 0 };
+  const alt = d.altDersler && d.altDersler[altDers];
+  if (!alt) return null;
+  return { dogru: alt.dogru || 0, yanlis: alt.yanlis || 0, bos: alt.bos || 0, net: alt.net || 0 };
+}
+
+function computeAverageStats(denemelerOfType, ders, altDers) {
+  let count = 0, sD = 0, sY = 0, sB = 0, sN = 0;
+  denemelerOfType.forEach((deneme) => {
+    const s = getDersStat(deneme, ders, altDers);
+    if (!s) return;
+    count++; sD += s.dogru; sY += s.yanlis; sB += s.bos; sN += s.net;
   });
+  if (count === 0) return null;
+  return { count, avgDogru: sD / count, avgYanlis: sY / count, avgBos: sB / count, avgNet: sN / count };
+}
 
-  dropdownOptionsList.innerHTML = ''; 
+function getKonuListesi(denemelerOfType, ders, altDers, tip) {
+  const list = [];
+  denemelerOfType.forEach((deneme) => {
+    getKonularForDeneme(deneme).forEach((k) => {
+      if (k.ders !== ders) return;
+      if (altDers && k.altDers !== altDers) return; // altDers belirtilmediyse (genel) tüm alt dersler dahil
+      if (k.tip !== tip) return;
+      list.push({ konu: k.konu, denemeAdi: deneme.denemeAdi, tarih: deneme.tarih });
+    });
+  });
+  list.sort((a, b) => (b.tarih || "").localeCompare(a.tarih || ""));
+  return list;
+}
 
-  if (state.denemeler.length === 0) {
-    newSelectedText.innerHTML = `Henüz deneme yok... <span style="font-size: 12px;">▼</span>`;
+// Konu adlarını büyük/küçük harf duyarsız, karakter bazlı pozisyonel
+// benzerlik oranına göre kümeler (kullanıcının yazım farklarına
+// toleranslı olacak şekilde) — eşik %70.
+function turkishLower(str) {
+  return (str || "").toLocaleLowerCase('tr-TR').trim();
+}
+
+function topicSimilarity(a, b) {
+  const s1 = turkishLower(a), s2 = turkishLower(b);
+  const maxLen = Math.max(s1.length, s2.length);
+  if (maxLen === 0) return 0;
+  const minLen = Math.min(s1.length, s2.length);
+  let matches = 0;
+  for (let i = 0; i < minLen; i++) if (s1[i] === s2[i]) matches++;
+  return matches / maxLen;
+}
+
+function clusterAndRankTopics(konuStrings, limit = 5) {
+  const clusters = [];
+  konuStrings.forEach((konu) => {
+    const found = clusters.find(c => topicSimilarity(c.representative, konu) >= 0.7);
+    if (found) found.count++;
+    else clusters.push({ representative: konu, count: 1 });
+  });
+  return clusters.sort((a, b) => b.count - a.count).slice(0, limit);
+}
+
+/* ------------------------------------------------------------
+   ANALİZ — GENEL ANALİZ RENDER
+------------------------------------------------------------- */
+function renderGenelAnalizBlock(bodyEl, denemelerOfType, dersListDef, turLabel) {
+  if (denemelerOfType.length === 0) {
+    bodyEl.innerHTML = `<p class="empty-text">Daha önce ${turLabel} denemesi eklenmemiş.</p>`;
     return;
   }
 
-  newSelectedText.innerHTML = `Analiz için bir deneme seçin... <span style="font-size: 12px;">▼</span>`;
-  newSelectedText.dataset.selectedId = "";
+  const rows = dersListDef.map((d) => ({ label: d.label, stat: computeAverageStats(denemelerOfType, d.key, null) }))
+    .filter(r => r.stat);
 
-  state.denemeler.forEach((d) => {
-    const li = document.createElement('li');
-    li.textContent = `${d.tarih} - ${d.denemeAdi} (${d.tur})`;
-    
-    li.onclick = (e) => {
-      e.stopPropagation();
-      newSelectedText.innerHTML = `${d.tarih} - ${d.denemeAdi} (${d.tur}) <span style="font-size: 12px;">▼</span>`;
-      newSelectedText.dataset.selectedId = d.id;
-      dropdownOptionsList.classList.remove('show');
-    };
-    
-    dropdownOptionsList.appendChild(li);
+  if (rows.length === 0) {
+    bodyEl.innerHTML = `<p class="empty-text">Daha önce ${turLabel} denemesi eklenmemiş.</p>`;
+    return;
+  }
+
+  const mostWrong = rows.reduce((max, r) => r.stat.avgYanlis > max.stat.avgYanlis ? r : max, rows[0]);
+  const mostBlank = rows.reduce((max, r) => r.stat.avgBos > max.stat.avgBos ? r : max, rows[0]);
+
+  let html = `
+    <div class="genel-analiz-highlight-row">
+      <div class="genel-analiz-highlight">
+        <span class="genel-analiz-highlight__label">En Çok Yanlış Yaptığın Ders</span>
+        <span class="genel-analiz-highlight__value">${mostWrong.label}</span>
+        <span class="genel-analiz-highlight__sub">Ort. ${mostWrong.stat.avgYanlis.toFixed(2)} yanlış</span>
+      </div>
+      <div class="genel-analiz-highlight">
+        <span class="genel-analiz-highlight__label">En Çok Boş Bıraktığın Ders</span>
+        <span class="genel-analiz-highlight__value">${mostBlank.label}</span>
+        <span class="genel-analiz-highlight__sub">Ort. ${mostBlank.stat.avgBos.toFixed(2)} boş</span>
+      </div>
+    </div>
+    <div class="genel-analiz-subject-grid">
+  `;
+
+  rows.forEach((r) => {
+    html += `
+      <div class="genel-analiz-subject-card">
+        <span class="genel-analiz-subject-card__title">${r.label}</span>
+        <div class="genel-analiz-subject-card__stats">
+          <div><span>Ort. Doğru</span><strong>${r.stat.avgDogru.toFixed(2)}</strong></div>
+          <div><span>Ort. Yanlış</span><strong>${r.stat.avgYanlis.toFixed(2)}</strong></div>
+          <div><span>Ort. Boş</span><strong>${r.stat.avgBos.toFixed(2)}</strong></div>
+          <div><span>Ort. Net</span><strong>${r.stat.avgNet.toFixed(2)}</strong></div>
+        </div>
+      </div>`;
+  });
+
+  html += `</div>`;
+  bodyEl.innerHTML = html;
+}
+
+function renderGenelAnaliz() {
+  const tytExams = state.denemeler.filter(d => d.tur === "TYT");
+  const aytExams = state.denemeler.filter(d => d.tur === "AYT");
+  renderGenelAnalizBlock(el("genelAnalizTyt").querySelector(".genel-analiz-block__body"), tytExams, TYT_GENEL_DERSLER, "TYT");
+  renderGenelAnalizBlock(el("genelAnalizAyt").querySelector(".genel-analiz-block__body"), aytExams, AYT_GENEL_DERSLER, "AYT");
+}
+
+/* ------------------------------------------------------------
+   ANALİZ — DERS BAZLI DETAY RENDER
+------------------------------------------------------------- */
+function renderKonuRow(item, isBlank) {
+  return `
+    <div class="konu-row ${isBlank ? 'is-blank' : ''}">
+      <span class="konu-row__name">${item.konu}</span>
+      <span class="konu-row__meta">${item.denemeAdi || ''} · ${item.tarih || ''}</span>
+    </div>`;
+}
+
+function renderTopList(clusters) {
+  if (clusters.length === 0) return `<p class="empty-text">Veri bulunamadı.</p>`;
+  return `<div class="konu-rank-list">` + clusters.map((c, i) => `
+    <div class="konu-rank-item">
+      <span class="konu-rank-item__badge">${i + 1}</span>
+      <span class="konu-rank-item__name">${c.representative}</span>
+      <span class="konu-rank-item__count">${c.count} kez</span>
+    </div>`).join('') + `</div>`;
+}
+
+function renderDetailCardBody(bodyEl, denemelerOfType, ders, altDers, label) {
+  const stat = computeAverageStats(denemelerOfType, ders, altDers);
+  if (!stat) {
+    bodyEl.innerHTML = `<p class="empty-text">${label} için veri bulunamadı.</p>`;
+    return;
+  }
+
+  // Sosyal Bilimler'de konu girilmediği için sadece ortalamalar gösterilir
+  if (ders === "sosyal") {
+    bodyEl.innerHTML = `
+      <div class="ders-detay-stats">
+        <div><span>Ort. Doğru</span><strong>${stat.avgDogru.toFixed(2)}</strong></div>
+        <div><span>Ort. Yanlış</span><strong>${stat.avgYanlis.toFixed(2)}</strong></div>
+        <div><span>Ort. Boş</span><strong>${stat.avgBos.toFixed(2)}</strong></div>
+        <div><span>Ort. Net</span><strong>${stat.avgNet.toFixed(2)}</strong></div>
+      </div>`;
+    return;
+  }
+
+  const wrongList = getKonuListesi(denemelerOfType, ders, altDers, "yanlis");
+  const blankList = getKonuListesi(denemelerOfType, ders, altDers, "bos");
+  const topWrong = clusterAndRankTopics(wrongList.map(x => x.konu), 5);
+  const topBlank = clusterAndRankTopics(blankList.map(x => x.konu), 5);
+  const groupId = `${ders}_${altDers || 'genel'}`.replace(/[^a-zA-Z0-9_]/g, '');
+
+  bodyEl.innerHTML = `
+    <div class="ders-detay-stats">
+      <div><span>Ort. Doğru</span><strong>${stat.avgDogru.toFixed(2)}</strong></div>
+      <div><span>Ort. Yanlış</span><strong>${stat.avgYanlis.toFixed(2)}</strong></div>
+      <div><span>Ort. Boş</span><strong>${stat.avgBos.toFixed(2)}</strong></div>
+      <div><span>Ort. Net</span><strong>${stat.avgNet.toFixed(2)}</strong></div>
+    </div>
+    <div class="ders-detay-columns">
+      <div class="ders-detay-column">
+        <h4>Son Yanlış Yaptığın Konular</h4>
+        <div class="konu-list">
+          ${wrongList.length ? wrongList.slice(0, 10).map(item => renderKonuRow(item, false)).join('') : '<p class="empty-text">Veri bulunamadı.</p>'}
+        </div>
+        ${wrongList.length > 10 ? `<button type="button" class="btn-neo btn-neo--sm konu-show-all-btn" data-target="wrongAll_${groupId}">Tümünü Gör</button>` : ''}
+        <div class="konu-list-all" id="wrongAll_${groupId}" hidden>
+          ${wrongList.map(item => renderKonuRow(item, false)).join('')}
+        </div>
+        <h4 style="margin-top:16px;">En Çok Yanlış Yapılan 5 Konu</h4>
+        ${renderTopList(topWrong)}
+      </div>
+      <div class="ders-detay-column">
+        <h4>Son Boş Bıraktığın Konular</h4>
+        <div class="konu-list">
+          ${blankList.length ? blankList.slice(0, 10).map(item => renderKonuRow(item, true)).join('') : '<p class="empty-text">Veri bulunamadı.</p>'}
+        </div>
+        ${blankList.length > 10 ? `<button type="button" class="btn-neo btn-neo--sm konu-show-all-btn" data-target="blankAll_${groupId}">Tümünü Gör</button>` : ''}
+        <div class="konu-list-all" id="blankAll_${groupId}" hidden>
+          ${blankList.map(item => renderKonuRow(item, true)).join('')}
+        </div>
+        <h4 style="margin-top:16px;">En Çok Boş Bırakılan 5 Konu</h4>
+        ${renderTopList(topBlank)}
+      </div>
+    </div>
+  `;
+
+  bodyEl.querySelectorAll(".konu-show-all-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const target = el(btn.dataset.target);
+      const isHidden = target.hidden;
+      target.hidden = !isHidden;
+      btn.textContent = isHidden ? "Gizle" : "Tümünü Gör";
+    });
   });
 }
 
-el("runSingleAnalysisBtn").addEventListener("click", async () => {
-  const dropdownSelectedText = el("dropdownSelectedText");
-  const id = dropdownSelectedText ? dropdownSelectedText.dataset.selectedId : null;
-  
-  if (!id) { showToast("Lütfen bir deneme seçin.", "error"); return; }
+function renderDersBazliAnaliz() {
+  const tur = el("dersAnalizTurFilter").value;
+  const denemelerOfType = state.denemeler.filter(d => d.tur === tur);
+  const gruplar = tur === "TYT" ? TYT_DETAY_GRUPLARI : AYT_DETAY_GRUPLARI;
+  const container = el("dersBazliAnalizContainer");
+  container.innerHTML = "";
 
-  const selectedExam = state.denemeler.find((d) => d.id === id);
-  const box = el("singleAnalysisOutput");
-  box.innerHTML = "Analiz yapılıyor... Lütfen bekleyin.";
-
-  try {
-    const res = await analyzeSingleExam(selectedExam, state.denemeler);
-    box.innerHTML = `<h4>${selectedExam.denemeAdi} Analiz Sonucu</h4><p><strong>Genel Durum:</strong> ${res.genelOrtalamayaGoreDurum}</p><p>${res.genelYorum}</p>`;
-    await updateDenemeAiNote(state.user.uid, selectedExam.id, res.genelYorum);
-    autoUpdateRoadmap();
-  } catch (err) {
-    box.innerHTML = `<span style="color: var(--danger)">Yapay zeka ağına ulaşılamadı. Lütfen tekrar deneyiniz.</span>`;
-  }
-});
-
-el("runChronicAnalysisBtn").addEventListener("click", async () => {
-  if (state.denemeler.length < 2) { showToast("En az 2 deneme kaydı gerekiyor.", "error"); return; }
-  const box = el("chronicAnalysisOutput");
-  box.innerHTML = "Tüm denemeler taranıyor... Lütfen bekleyin.";
-  try {
-    const res = await analyzeChronicPatterns(state.denemeler);
-    box.innerHTML = `<p>${res.genelDegerlendirme}</p>`;
-    autoUpdateRoadmap();
-  } catch (err) {
-    box.innerHTML = `<span style="color: var(--danger)">Kronik analiz yapılırken bir hata oluştu. Lütfen tekrar deneyiniz.</span>`;
-  }
-});
-
-async function autoUpdateRoadmap() {
-  const box = el("roadmapOutput");
-  if (state.denemeler.length === 0) {
-    box.innerHTML = `<p class="empty-text">Henüz deneme bulunmadığı için yol haritası oluşturulamadı.</p>`;
+  if (denemelerOfType.length === 0) {
+    container.innerHTML = `<p class="empty-text">Daha önce ${tur} denemesi eklenmemiş.</p>`;
     return;
   }
-  try {
-    const res = await analyzeChronicPatterns(state.denemeler);
-    if (res.yolHaritasi && res.yolHaritasi.length) {
-      box.innerHTML = res.yolHaritasi.map((step) => `<p><strong>Adım ${step.adim}: ${step.baslik}</strong> - ${step.aciklama}</p>`).join("");
-    } else {
-      box.innerHTML = "<p>Mevcut netlerinize göre düzenli deneme çözmeye devam edin.</p>";
+
+  gruplar.forEach((grup) => {
+    const card = document.createElement("div");
+    card.className = "ders-detay-card";
+
+    let headerHtml = `<div class="ders-detay-card__header"><h3>${grup.label}</h3>`;
+    if (grup.tabs) {
+      headerHtml += `<div class="ders-detay-tabs">` + grup.tabs.map((t, i) =>
+        `<button type="button" class="ders-detay-tab ${i === 0 ? 'is-active' : ''}" data-alt="${t.altDers || ''}">${t.label}</button>`
+      ).join('') + `</div>`;
     }
-  } catch (e) {
-    box.innerHTML = `<span style="color: var(--danger)">Yol haritası güncellenirken hata oluştu.</span>`;
-  }
+    headerHtml += `</div>`;
+
+    card.innerHTML = headerHtml + `<div class="ders-detay-card__body"></div>`;
+    container.appendChild(card);
+
+    const bodyEl = card.querySelector(".ders-detay-card__body");
+
+    if (grup.tabs) {
+      const tabBtns = card.querySelectorAll(".ders-detay-tab");
+      tabBtns.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          tabBtns.forEach(b => b.classList.remove("is-active"));
+          btn.classList.add("is-active");
+          const altDers = btn.dataset.alt || null;
+          const tabDef = grup.tabs.find(t => (t.altDers || '') === (altDers || ''));
+          renderDetailCardBody(bodyEl, denemelerOfType, grup.ders, altDers, `${grup.label} - ${tabDef.label}`);
+        });
+      });
+      renderDetailCardBody(bodyEl, denemelerOfType, grup.ders, null, `${grup.label} - Genel`);
+    } else {
+      renderDetailCardBody(bodyEl, denemelerOfType, grup.ders, null, grup.label);
+    }
+  });
 }
+
+el("dersAnalizTurFilter").addEventListener("change", () => {
+  renderDersBazliAnaliz();
+});
+
+function renderAnalizView() {
+  renderGenelAnaliz();
+  initCustomSelect(el("dersAnalizTurFilter"));
+  renderDersBazliAnaliz();
+}
+
 
 /* ------------------------------------------------------------
    PDF İLE OTOMATİK OKUMA: yükle -> önizle -> onaylarsan kaydet
 ------------------------------------------------------------- */
-const escapeHtml = (v) =>
-  String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-
 let pendingPdf = null; // onay bekleyen { denemeData, konuGruplari, warnings, ogrenci }
 
 function setPdfStatus(message, isError = false) {
@@ -850,10 +1124,10 @@ async function confirmPdfSave() {
 const pdfDropzone = el("pdfDropzone");
 const pdfFileInput = el("pdfFileInput");
 if (pdfDropzone && pdfFileInput) {
-pdfDropzone.addEventListener("click", () => pdfFileInput.click());
-pdfDropzone.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pdfFileInput.click(); } });
-pdfFileInput.addEventListener("change", () => { handlePdfFile(pdfFileInput.files[0]); pdfFileInput.value = ""; });
-["dragenter", "dragover"].forEach((ev) => pdfDropzone.addEventListener(ev, (e) => { e.preventDefault(); pdfDropzone.classList.add("is-drag"); }));
-["dragleave", "drop"].forEach((ev) => pdfDropzone.addEventListener(ev, (e) => { e.preventDefault(); pdfDropzone.classList.remove("is-drag"); }));
-pdfDropzone.addEventListener("drop", (e) => handlePdfFile(e.dataTransfer.files[0]));
+  pdfDropzone.addEventListener("click", () => pdfFileInput.click());
+  pdfDropzone.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pdfFileInput.click(); } });
+  pdfFileInput.addEventListener("change", () => { handlePdfFile(pdfFileInput.files[0]); pdfFileInput.value = ""; });
+  ["dragenter", "dragover"].forEach((ev) => pdfDropzone.addEventListener(ev, (e) => { e.preventDefault(); pdfDropzone.classList.add("is-drag"); }));
+  ["dragleave", "drop"].forEach((ev) => pdfDropzone.addEventListener(ev, (e) => { e.preventDefault(); pdfDropzone.classList.remove("is-drag"); }));
+  pdfDropzone.addEventListener("drop", (e) => handlePdfFile(e.dataTransfer.files[0]));
 }
