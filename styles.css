@@ -417,6 +417,54 @@ input[readonly] {
 .coming-soon-icon { width: 80px; height: 80px; border-radius: 50%; background: var(--card-bg); box-shadow: var(--shadow-drop); display: grid; place-items: center; color: var(--accent-purple); }
 
 /* ------------------------------------------------------------
+   ANALİZ — GENEL ANALİZ
+------------------------------------------------------------- */
+.genel-analiz-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; }
+.genel-analiz-block { background: var(--card-bg); border-radius: var(--radius-md); padding: 20px; box-shadow: var(--shadow-inset); }
+.genel-analiz-block__title { font-size: 1rem; font-weight: 800; margin-bottom: 16px; color: var(--primary-blue); }
+.genel-analiz-highlight-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.genel-analiz-highlight { background: var(--card-bg); border-radius: var(--radius-sm); padding: 14px; box-shadow: var(--shadow-drop-sm); display: flex; flex-direction: column; gap: 4px; }
+.genel-analiz-highlight__label { font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
+.genel-analiz-highlight__value { font-size: 1.1rem; font-weight: 800; color: var(--primary-blue); }
+.genel-analiz-highlight__sub { font-size: 0.78rem; color: var(--text-light); font-weight: 600; }
+.genel-analiz-subject-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+.genel-analiz-subject-card { background: var(--card-bg); border-radius: var(--radius-sm); padding: 14px; box-shadow: var(--shadow-drop-sm); }
+.genel-analiz-subject-card__title { font-weight: 800; font-size: 0.9rem; display: block; margin-bottom: 10px; color: var(--text-main); }
+.genel-analiz-subject-card__stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.genel-analiz-subject-card__stats div { display: flex; flex-direction: column; gap: 2px; }
+.genel-analiz-subject-card__stats span { font-size: 0.68rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
+.genel-analiz-subject-card__stats strong { font-family: var(--font-mono); font-size: 0.95rem; color: var(--text-main); }
+
+/* ------------------------------------------------------------
+   ANALİZ — DERS BAZLI ANALİZ
+------------------------------------------------------------- */
+.ders-analiz-container { display: flex; flex-direction: column; gap: 20px; }
+.ders-detay-card { background: var(--card-bg); border-radius: var(--radius-md); padding: 22px; box-shadow: var(--shadow-drop-sm); }
+.ders-detay-card__header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+.ders-detay-card__header h3 { font-size: 1.05rem; font-weight: 800; }
+.ders-detay-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+.ders-detay-tab { border: none; background: var(--card-bg); padding: 8px 16px; border-radius: var(--radius-sm); font-family: var(--font-sans); font-weight: 700; font-size: 0.8rem; color: var(--text-muted); cursor: pointer; box-shadow: var(--shadow-drop-sm); transition: all 0.2s ease; }
+.ders-detay-tab.is-active { color: var(--primary-blue); box-shadow: var(--shadow-inset); }
+.ders-detay-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 12px; background: var(--card-bg); border-radius: var(--radius-sm); padding: 16px; box-shadow: var(--shadow-inset); margin-bottom: 18px; text-align: center; }
+.ders-detay-stats div { display: flex; flex-direction: column; gap: 4px; }
+.ders-detay-stats span { font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
+.ders-detay-stats strong { font-family: var(--font-mono); font-size: 1.15rem; color: var(--primary-blue); }
+.ders-detay-columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; }
+.ders-detay-column h4 { font-size: 0.85rem; font-weight: 800; color: var(--text-muted); margin-bottom: 10px; }
+.konu-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+.konu-row { background: var(--card-bg); border-radius: var(--radius-sm); padding: 10px 14px; box-shadow: var(--shadow-drop-sm); display: flex; flex-direction: column; gap: 2px; border-left: 3px solid var(--danger); }
+.konu-row.is-blank { border-left-color: var(--accent-purple); }
+.konu-row__name { font-weight: 700; font-size: 0.85rem; color: var(--text-main); }
+.konu-row__meta { font-size: 0.72rem; color: var(--text-light); font-weight: 600; }
+.konu-list-all { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; margin-bottom: 10px; max-height: 320px; overflow-y: auto; padding-right: 4px; }
+.konu-show-all-btn { margin-bottom: 12px; }
+.konu-rank-list { display: flex; flex-direction: column; gap: 8px; }
+.konu-rank-item { display: flex; align-items: center; gap: 10px; background: var(--card-bg); border-radius: var(--radius-sm); padding: 8px 12px; box-shadow: var(--shadow-drop-sm); }
+.konu-rank-item__badge { width: 22px; height: 22px; border-radius: 50%; background: var(--primary-gradient); color: #fff; font-size: 0.72rem; font-weight: 800; display: grid; place-items: center; flex-shrink: 0; }
+.konu-rank-item__name { flex: 1; font-size: 0.82rem; font-weight: 600; color: var(--text-main); }
+.konu-rank-item__count { font-size: 0.72rem; font-weight: 700; color: var(--primary-blue); white-space: nowrap; }
+
+/* ------------------------------------------------------------
    ANALİZ
 ------------------------------------------------------------- */
 .analysis-select-row { display: flex; gap: 16px; margin-bottom: 20px; }
@@ -471,7 +519,22 @@ input[readonly] {
   .sub-subject-row { grid-template-columns: 1fr; align-items: start; }
   .analysis-select-row { flex-direction: column; }
   .landing-footer__content { justify-content: center; text-align: center; flex-direction: column; }
+  .genel-analiz-grid { grid-template-columns: 1fr; }
+  .ders-detay-columns { grid-template-columns: 1fr; }
+  .ders-detay-card__header { flex-direction: column; align-items: flex-start; }
 }
+
+/* ------------------------------------------------------------
+   DENEME GEÇMİŞİ: DERS BAZLI KONU GRUPLARI
+------------------------------------------------------------- */
+.history-ders-group { margin-bottom: 18px; padding: 14px; border-radius: var(--radius-sm); background: rgba(0,0,0,0.015); box-shadow: var(--shadow-inset); }
+.history-ders-group__title { font-weight: 800; font-size: 1rem; color: var(--primary-blue); margin-bottom: 10px; }
+.history-sub-block + .history-sub-block { margin-top: 14px; padding-top: 12px; border-top: 1px dashed rgba(0,0,0,0.08); }
+.history-sub-block__title { font-weight: 800; font-size: 0.9rem; margin-bottom: 8px; }
+.history-kind-title { font-size: 0.8rem; font-weight: 800; margin: 8px 0 6px; color: var(--danger); }
+.history-kind-title.is-blank { color: var(--accent-purple); }
+.history-kind-title small { color: var(--text-light); font-weight: 600; margin-left: 4px; }
+.history-empty { font-size: 0.8rem; margin-bottom: 4px; }
 
 /* ------------------------------------------------------------
    PDF İÇE AKTARMA
