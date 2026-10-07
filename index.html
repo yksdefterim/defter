@@ -16,6 +16,9 @@
 <!-- Chart.js -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 
+<!-- pdf.js (PDF karne okuma) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -68,7 +71,7 @@
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
       Ana Sayfaya Dön
     </button>
-
+    
     <div class="brand-mark">
       <div class="brand-icon">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
@@ -76,7 +79,7 @@
       <span>Defter</span>
     </div>
 
-    <div class="auth-tabs" role="tablist" id="authTabsRow">
+    <div class="auth-tabs" role="tablist">
       <button type="button" class="auth-tab is-active" id="authTabLogin" role="tab">Giriş Yap</button>
       <button type="button" class="auth-tab" id="authTabRegister" role="tab">Kayıt Ol</button>
     </div>
@@ -94,7 +97,6 @@
         <input type="password" id="loginPassword" required placeholder="••••••••">
       </div>
       <button type="submit" class="btn-neo btn-neo--primary btn-neo--full">Giriş Yap</button>
-      <button type="button" id="forgotPasswordLink" class="auth-forgot-link">Şifremi Unuttum?</button>
     </form>
 
     <!-- Kayıt Formu -->
@@ -124,31 +126,6 @@
       </div>
       <button type="submit" class="btn-neo btn-neo--primary btn-neo--full">Hesap Oluştur</button>
     </form>
-
-    <!-- Şifremi Unuttum / Şifre Değiştirme Formu -->
-    <form id="forgotPasswordForm" class="auth-form" hidden novalidate>
-      <button type="button" id="forgotBackToLogin" class="auth-back-link">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-        Giriş Ekranına Dön
-      </button>
-      <div class="field-group">
-        <label>E-posta Adresi</label>
-        <input type="email" id="forgotEmail" required placeholder="ornek@mail.com">
-      </div>
-      <div class="field-group">
-        <label>Eski Şifre</label>
-        <input type="password" id="forgotOldPassword" required placeholder="••••••••">
-      </div>
-      <div class="field-group">
-        <label>Yeni Şifre</label>
-        <input type="password" id="forgotNewPassword" required minlength="6" placeholder="En az 6 karakter">
-      </div>
-      <div class="field-group">
-        <label>Yeni Şifre (Tekrar)</label>
-        <input type="password" id="forgotNewPasswordConfirm" required minlength="6" placeholder="Yeni şifreni tekrar gir">
-      </div>
-      <button type="submit" class="btn-neo btn-neo--primary btn-neo--full">Şifreyi Değiştir</button>
-    </form>
   </div>
 </div>
 
@@ -157,9 +134,6 @@
   <!-- TOPBAR -->
   <header class="topbar">
     <div class="topbar__brand">
-      <button type="button" id="mobileMenuBtn" class="hamburger-btn" aria-label="Menüyü aç">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-      </button>
       <div class="brand-icon">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
       </div>
@@ -199,8 +173,6 @@
         Deneme Geçmişi
       </button>
     </nav>
-
-    <div id="sidebarBackdrop" class="sidebar-backdrop"></div>
 
     <!-- İÇERİK ALANI -->
     <main class="content">
@@ -249,7 +221,7 @@
       <section id="view-new-entry" class="view">
         <div class="entry-toggle">
           <button type="button" class="entry-toggle__btn is-active" id="entryTabManual">Manuel Giriş</button>
-          <button type="button" class="entry-toggle__btn" id="entryTabPdf">PDF ile Otomatik Oku <span class="badge-pill">Yakında!</span></button>
+          <button type="button" class="entry-toggle__btn" id="entryTabPdf">PDF ile Otomatik Oku</button>
         </div>
 
         <!-- MANUEL GİRİŞ FORMU -->
@@ -319,52 +291,65 @@
           <button type="submit" class="btn-neo btn-neo--primary btn-neo--full btn-neo--lg">Denemeyi Kaydet</button>
         </form>
 
-        <!-- PDF PANELİ (YAKINDA OVERLAY) -->
+        <!-- PDF PANELİ -->
         <div id="pdfEntryPanel" class="panel entry-panel" hidden>
-          <div class="coming-soon-box">
-            <div class="coming-soon-icon">
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-            </div>
-            <h3>PDF Karne İnceleme Yakında Sizlerle!</h3>
-            <p>Deneme sonuç karnenizi PDF olarak yükleyip yapay zeka ile otomatik okutma özelliği çok yakında aktif olacak. Şimdilik Manuel Giriş sekmesini kullanabilirsiniz.</p>
+          <div class="panel__header">
+            <h2>PDF ile Otomatik Oku</h2>
           </div>
+
+          <div id="pdfDropzone" class="pdf-dropzone" tabindex="0" role="button">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg>
+            <p><strong>Karne PDF'ini buraya sürükle</strong> veya seçmek için tıkla</p>
+            <span class="pdf-dropzone__hint">Dosya sunucuya gönderilmez, tarayıcında okunur. Şu an 360 Derece Eğitim karneleri destekleniyor.</span>
+            <input type="file" id="pdfFileInput" accept="application/pdf,.pdf" hidden>
+          </div>
+
+          <p id="pdfStatus" class="pdf-status" hidden></p>
+          <div id="pdfPreview" hidden></div>
         </div>
       </section>
 
-      <!-- GÖRÜNÜM: ANALİZ (Yapay zeka içermez — tüm hesaplar site tarafından yapılır) -->
-      <section id="view-analiz" class="view">
+      <!-- GÖRÜNÜM: ANALİZ -->
+<section id="view-analiz" class="view">
+  <div class="panel">
+    <div class="panel__header">
+      <h2>Tek Deneme Analizi</h2>
+    </div>
+    <div class="analysis-select-row">
+      
+      <!-- GÜNCELLENEN KISIM: Özel Dropdown (Flex yapısına uyumlu hale getirildi) -->
+      <div class="custom-dropdown" id="denemeDropdown" style="flex: 1; margin: 0; max-width: none;">
+        <div class="dropdown-selected" id="dropdownSelectedText">
+          Analiz için bir deneme seçin... <span style="font-size: 12px;">▼</span>
+        </div>
+        <ul class="dropdown-options" id="dropdownOptionsList">
+          <!-- Seçenekler JavaScript ile buraya eklenecek -->
+        </ul>
+      </div>
+      
+      <button type="button" id="runSingleAnalysisBtn" class="btn-neo btn-neo--primary">Analiz Et</button>
+    </div>
+    <div id="singleAnalysisOutput" class="analysis-result-box">
+      <p class="empty-text">Listeden bir deneme seçip "Analiz Et" butonuna tıklayın.</p>
+    </div>
+  </div>
+
         <div class="panel">
           <div class="panel__header">
-            <h2>Genel Analiz</h2>
+            <h2>Kronik Analiz (Tüm Denemeler)</h2>
+            <button type="button" id="runChronicAnalysisBtn" class="btn-neo btn-neo--accent">Tümünü Taramayı Başlat</button>
           </div>
-          <div class="genel-analiz-grid">
-            <div class="genel-analiz-block" id="genelAnalizTyt">
-              <h3 class="genel-analiz-block__title">TYT</h3>
-              <div class="genel-analiz-block__body">
-                <p class="empty-text">Daha önce TYT denemesi eklenmemiş.</p>
-              </div>
-            </div>
-            <div class="genel-analiz-block" id="genelAnalizAyt">
-              <h3 class="genel-analiz-block__title">AYT (Sayısal)</h3>
-              <div class="genel-analiz-block__body">
-                <p class="empty-text">Daha önce AYT denemesi eklenmemiş.</p>
-              </div>
-            </div>
+          <div id="chronicAnalysisOutput" class="analysis-result-box">
+            <p class="empty-text">Sürekli tekrar eden eksiklerinizi bulmak için taramayı çalıştırın (En az 3 deneme önerilir).</p>
           </div>
         </div>
 
         <div class="panel">
           <div class="panel__header">
-            <h2>Ders Bazlı Analiz</h2>
-            <div class="select-wrapper select-wrapper--sm" style="width: 160px;">
-              <select id="dersAnalizTurFilter">
-                <option value="TYT">TYT</option>
-                <option value="AYT">AYT</option>
-              </select>
-            </div>
+            <h2>Kişiselleştirilmiş Yol Haritası</h2>
           </div>
-          <div id="dersBazliAnalizContainer" class="ders-analiz-container">
-            <p class="empty-text">Daha önce TYT denemesi eklenmemiş.</p>
+          <div id="roadmapOutput" class="analysis-result-box roadmap-box">
+            <p class="empty-text">Eklenen denemelere göre yol haritanız burada oluşturulacak.</p>
           </div>
         </div>
       </section>
