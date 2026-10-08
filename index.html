@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Defter | YKS Deneme Takip</title>
+
+<!-- Favicon (SVG) -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%233b82f6'><path d='M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z'/></svg>">
+
+<!-- Google Fonts: Plus Jakarta Sans -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+
+<!-- Chart.js -->
+
+
+<!-- pdf.js (PDF karne okuma) -->
+
+
+<link rel="stylesheet" href="styles.css?v=20261008-2">
+<link rel="stylesheet" href="updates.css?v=20261008-2">
+</head>
+<body data-page="landing">
+<div id="landingPage" class="landing-page">
+  <header class="landing-nav">
+    <div class="landing-nav__brand">
+      <div class="brand-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+      </div>
+      <span>Defter</span>
+    </div>
+    <button type="button" id="landingTopLoginBtn" class="btn-neo btn-neo--accent">Giriş Yap</button>
+  </header>
+
+  <section class="landing-hero">
+    <div class="hero-card">
+      <span class="hero-card__badge">Her deneme, bir adım ileri</span>
+      <h1 class="hero-card__title">Bugünkü emeğin,<br>yarının ilerlemesi.</h1>
+      <p class="hero-card__sub">
+        TYT ve AYT deneme sonuçlarını ders ve konu detaylarıyla kaydet.
+        Gelişim grafiğini izle, sürekli takıldığın konuları anında tespit et.
+      </p>
+      <button type="button" id="landingHeroLoginBtn" class="btn-neo btn-neo--primary btn-neo--lg">Kendi defterini aç</button>
+    </div>
+  <div class="desk-preview" aria-label="Defter ile çalışma akışı"><div class="desk-preview__label">SENİN ÇALIŞMA DEFTERİN</div><h2>Bir deneme.<br>Daha net bir yol.</h2><div class="preview-line"><span>01</span><div><strong>Sonuçlarını kaydet</strong><p>TYT ve AYT, tek bir yerde.</p></div></div><div class="preview-line"><span>02</span><div><strong>Eksiklerini fark et</strong><p>Derslerden konulara, detaylı analiz.</p></div></div><div class="preview-line"><span>03</span><div><strong>Gelişimini izle</strong><p>Düzenli çalışmanın izini gör.</p></div></div><span class="paper-note">Az da olsa, her gün.</span></div></section>
+
+  <!-- YENİ EKLENEN FOOTER NAVBAR -->
+  <footer class="landing-footer">
+    <div class="landing-footer__content">
+      <div class="landing-footer__brand">
+        <div class="brand-icon brand-icon--sm">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+        </div>
+        <span>Defter</span>
+      </div>
+      <div class="landing-footer__copy">
+        &copy; 2026 Muhammet Furkan Tunçez. Tüm hakları saklıdır.
+      </div>
+      <button type="button" id="landingFooterLoginBtn" class="btn-neo btn-neo--sm btn-neo--primary">Giriş Yap</button>
+    </div>
+  </footer>
+</div>
+
+<!-- AUTH OVERLAY -->
+<div id="authOverlay" class="auth-overlay" hidden>
+  <div class="auth-card">
+    <button type="button" id="authBackToLanding" class="auth-back-link">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+      Ana Sayfaya Dön
+    </button>
+
+    <div class="brand-mark">
+      <div class="brand-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+      </div>
+      <span>Defter</span>
+    </div>
+
+    <div class="auth-tabs" role="tablist">
+      <button type="button" class="auth-tab is-active" id="authTabLogin" role="tab">Giriş Yap</button>
+      <button type="button" class="auth-tab" id="authTabRegister" role="tab">Kayıt Ol</button>
+    </div>
+
+    <p id="authError" class="auth-error" hidden></p>
+
+    <!-- Giriş Formu -->
+    <form id="loginForm" class="auth-form">
+      <div class="field-group">
+        <label for="loginEmail">E-posta Adresi</label><input type="email" id="loginEmail" autocomplete="email" required placeholder="ornek@mail.com">
+      </div>
+      <div class="field-group">
+        <label for="loginPassword">Şifre</label><input type="password" id="loginPassword" autocomplete="current-password" required placeholder="••••••••">
+      </div>
+      <div class="auth-options"><label class="remember"><input type="checkbox" id="rememberMe"> Beni hatırla</label><button type="button" class="text-button" id="forgotPassword">Şifremi unuttum</button></div><button type="submit" class="btn-neo btn-neo--primary btn-neo--full">Giriş Yap</button>
+    </form>
+
+    <!-- Kayıt Formu -->
+    <form id="registerForm" class="auth-form" hidden>
+      <div class="field-group">
+        <label for="registerName">Ad Soyad</label><input type="text" id="registerName" autocomplete="name" maxlength="100" required placeholder="Adın Soyadın">
+      </div>
+      <div class="field-group">
+        <label for="registerEmail">E-posta Adresi</label><input type="email" id="registerEmail" autocomplete="email" required placeholder="ornek@mail.com">
+      </div>
+      <div class="field-group">
+        <label for="registerPassword">Şifre</label><input type="password" id="registerPassword" autocomplete="new-password" required minlength="6" placeholder="En az 6 karakter">
+      </div>
+      <div class="field-group">
+        <label>Hedef Alanın</label>
+        <div class="select-wrapper">
+          <select id="registerAlan" required>
+            <option value="sayisal">Sayısal</option>
+            <option value="ea">Eşit Ağırlık</option>
+            <option value="sozel">Sözel</option>
+            <option value="dil">Dil</option>
+          </select>
+        </div>
+      </div>
+      <button type="submit" class="btn-neo btn-neo--primary btn-neo--full">Hesap Oluştur</button>
+    </form>
+  </div>
+</div>
+
+<div id="toastStack" class="toast-stack"></div><script type="module" src="auth.js"></script></body></html>
