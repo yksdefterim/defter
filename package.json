@@ -1,0 +1,9 @@
+{
+  "name": "defter-web", "private": true, "type": "module",
+  "scripts": {
+    "check": "node scripts/check.mjs",
+    "test:rules": "firebase emulators:exec --only firestore --project demo-defter \"node --test tests/firestore.test.mjs\"",
+    "test:functions": "firebase emulators:exec --only auth,firestore,functions --project demo-defter \"node --test tests/functions.test.mjs\""
+  },
+  "devDependencies": { "@firebase/rules-unit-testing": "^4.0.0", "firebase": "^11.0.0", "firebase-tools": "^14.0.0" }
+}

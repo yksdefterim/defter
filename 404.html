@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="tr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Sayfa Bulunamadı | Defter</title><meta name="description" content="Bu sayfa çalışma defterinde bulunamadı. Defter ana sayfasına dönerek denemelerini takip etmeye devam et."><meta name="robots" content="noindex, follow"><meta name="theme-color" content="#2d6254">
+<style>*{box-sizing:border-box}body{margin:0;background:#efede6;color:#294c40;font-family:system-ui,sans-serif;min-height:100svh;display:grid;place-items:center;padding:30px;background-image:radial-gradient(#34573515 .7px,transparent .7px);background-size:6px 6px}main{max-width:560px;width:100%;background:repeating-linear-gradient(transparent 0 31px,#80996215 31px 32px),#fcfaf0;border:1px solid #d4d9c5;border-left:12px solid #396e5b;border-radius:5px 18px 18px 5px;padding:48px;box-shadow:4px 5px #e3e4d3,7px 8px #faf9ed,10px 11px #cbd0bd,0 25px 60px #30452a20}small{letter-spacing:.15em;font-size:11px}.code{font:italic 96px Georgia,serif;color:#789178;margin:32px 0 20px;line-height:1}h1{font:32px Georgia,serif;letter-spacing:-.04em}p{font-size:14px;line-height:1.9;color:#5d6c5c}nav{display:flex;gap:20px;align-items:center;flex-wrap:wrap;margin-top:28px}a,button{font:600 13px system-ui;text-decoration:none;cursor:pointer}a{background:linear-gradient(#3e7c68,#2b5b4b);color:#fff;padding:14px 20px;border-radius:8px;box-shadow:0 3px #194635}button{border:0;background:none;color:#375f4c;padding:14px 0}a:focus-visible,button:focus-visible{outline:3px solid #8a9f6c;outline-offset:4px}@media(max-width:480px){main{padding:30px 26px}h1{font-size:28px}.code{font-size:80px}}</style></head>
+<body><main><small>DEFTER / EKSİK SAYFA</small><div class="code" aria-hidden="true">404</div><h1>Bu sayfa defterde yok.</h1><p>Bağlantı değişmiş ya da adres yanlış yazılmış olabilir. Ana sayfadan devam edebilirsin; kaydettiğin denemeler hesabında seni bekliyor.</p><nav aria-label="Sayfadan çıkış"><a id="homeLink" href="/">Ana sayfaya dön ↗</a><button id="backButton" type="button">Geri dön</button></nav></main>
+<script>
+// This page is self-contained: deep GitHub Pages 404 URLs cannot break its assets.
+document.getElementById('backButton').addEventListener('click', () => { if (history.length > 1) history.back(); else location.assign(document.getElementById('homeLink').href); });
+(async () => {
+  const parts = location.pathname.split('/').filter(Boolean); parts.pop();
+  // Find the nearest published index, supporting both repository and root sites.
+  for (let length = parts.length; length >= 0; length--) {
+    const path = '/' + parts.slice(0, length).concat('index.html').join('/');
+    try { const response = await fetch(path, { method: 'HEAD' }); if (response.ok) { document.getElementById('homeLink').href = path; break; } } catch {}
+  }
+})();
+</script></body></html>

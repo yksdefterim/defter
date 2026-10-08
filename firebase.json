@@ -1,0 +1,14 @@
+{
+  "functions": { "source": "functions", "runtime": "nodejs22" },
+  "firestore": { "rules": "firestore.rules" },
+  "hosting": {
+    "public": ".",
+    "ignore": ["firebase.json", "firestore.rules", ".firebaserc", "**/.*", "**/node_modules/**", "functions/**", "scripts/**", "tests/**", "package*.json", "*.md", "*.py", "gemini-service.js"],
+    "headers": [
+      { "source": "**/*.html", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] },
+      { "source": "**/*.js", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] },
+      { "source": "**/*.css", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] }
+    ]
+  },
+  "emulators": { "auth": { "port": 9099 }, "firestore": { "port": 8080 }, "functions": { "port": 5001 }, "ui": { "enabled": true } }
+}

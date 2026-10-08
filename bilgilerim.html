@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hesap Bilgilerim | Defter</title>
+<meta name="description" content="Defter profilini, hedef alanını ve hesap bilgilerini yönet.">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#2d6254">
+<meta property="og:locale" content="tr_TR">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Defter">
+<meta property="og:title" content="Hesap Bilgilerim | Defter">
+<meta property="og:description" content="Defter profilini, hedef alanını ve hesap bilgilerini yönet.">
+<meta name="twitter:card" content="summary">
+
+<!-- Favicon (SVG) -->
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+
+<!-- Google Fonts: Plus Jakarta Sans -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+
+<!-- Chart.js -->
+
+
+<!-- pdf.js (PDF karne okuma) -->
+
+
+<link rel="stylesheet" href="styles.css?v=20261008-2">
+<link rel="stylesheet" href="updates.css?v=20261008-2">
+<link rel="stylesheet" href="design.css?v=20261008-3">
+</head>
+<body><div id="sessionLoading" class="session-loading" role="status"><span class="session-spinner" aria-hidden="true"><span></span></span><span class="sr-only">Oturumun doğrulanıyor…</span></div><div id="appShell" class="app-shell" hidden><header class="topbar"><div class="topbar-left"><button id="menuToggle" class="btn-neo btn-neo--icon menu-toggle" aria-label="Gezinme menüsünü aç" aria-controls="sidebar" aria-expanded="false"></button><a class="topbar__brand" href="kullanici.html"><div class="brand-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg></div><span class="topbar__title">Defter</span></a></div><div class="topbar__user"><button class="user-badge" id="userMenuTrigger" aria-expanded="false" aria-controls="userMenu"><span class="user-badge__avatar" id="userAvatarInitial">Ö</span><span class="user-badge__info"><span id="userDisplayName" class="user-badge__name">Öğrenci</span><span id="userDisplayAlan" class="user-badge__alan">Sayısal</span></span><span class="user-badge__chevron" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span></button><div class="user-menu" id="userMenu" hidden><a href="bilgilerim.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/></svg>Bilgilerim</a><button id="logoutBtn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4H4v16h5M9 12h12m-5-5 5 5-5 5"/></svg>Çıkış yap</button></div></div></header><button class="menu-backdrop" id="menuBackdrop" aria-label="Menüyü kapat"></button><div class="app-body"><nav class="sidebar" id="sidebar" aria-label="Kullanıcı paneli"><a class="sidebar__btn" href="kullanici.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Genel bakış</a><a class="sidebar__btn is-active" href="bilgilerim.html"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/></svg>Bilgilerim</a></nav><main class="content profile-content"><a class="back-link" href="kullanici.html">← Genel bakışa dön</a><div class="profile-header"><div id="profileAvatar" class="profile-avatar">Ö</div><h1 id="profileHeading">Bilgilerim</h1><p id="profileAlanTitle"></p></div><form id="profileForm" class="panel profile-panel"><div class="panel__header"><h2>Kişisel bilgiler</h2></div><div class="field-group"><label for="profile-name">Ad soyad</label><input id="profile-name" required maxlength="100" autocomplete="name"></div><div class="field-group"><label for="profile-alan">Hedef alan</label><select id="profile-alan"><option value="sayisal">Sayısal</option><option value="ea">Eşit Ağırlık</option><option value="sozel">Sözel</option><option value="dil">Dil</option></select></div><div class="field-group"><label for="profile-email">E-posta adresi</label><input id="profile-email" type="email" disabled></div><p class="field-hint">Kayıt e-postan doğrulama sistemi eklenene kadar değiştirilemez.</p><div class="field-group"><label for="profile-phone">Telefon numarası</label><input id="profile-phone" type="tel" autocomplete="tel" maxlength="18" placeholder="05xx xxx xx xx"></div><p class="field-hint" id="phoneHint"></p><div class="field-group"><label for="profile-school">Okul</label><input id="profile-school" maxlength="160" placeholder="Okulunun adı"></div><div class="field-group"><label for="profile-address">Adres</label><textarea id="profile-address" maxlength="500" rows="3"></textarea></div></form><form id="passwordForm" class="panel profile-panel"><div class="panel__header"><h2>Şifreni değiştir</h2></div><div class="field-group"><label for="currentPassword">Şu anki şifre</label><input id="currentPassword" type="password" autocomplete="current-password" required></div><div class="field-group"><label for="nextPassword">Yeni şifre</label><input id="nextPassword" type="password" minlength="6" autocomplete="new-password" required></div><div class="field-group"><label for="repeatPassword">Yeni şifre tekrarı</label><input id="repeatPassword" type="password" minlength="6" autocomplete="new-password" required></div><button id="changePassword" type="submit" class="btn-neo">Şifreyi değiştir</button></form><div class="profile-save"><span>Değişikliklerini kaydetmeyi unutma.</span><button id="saveProfile" type="submit" form="profileForm" class="btn-neo btn-neo--primary">Bilgilerimi kaydet</button></div></main></div></div><div id="toastStack" class="toast-stack"></div><script type="module" src="profile.js"></script></body></html>
