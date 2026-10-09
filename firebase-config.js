@@ -57,13 +57,24 @@ if (useEmulators) {
 export { doc, collection, onSnapshot, getDoc, updateDoc, serverTimestamp, query, getDocs, setDoc, runTransaction };
 export { applyActionCode, checkActionCode, verifyPasswordResetCode, confirmPasswordReset };
 
+const verificationRefreshes = new WeakMap();
 export async function getVerificationAccess(user, refresh = false) {
-  if (refresh) { await reload(user); await user.getIdToken(true); }
+  if (refresh) {
+    // Focus, polling and send actions can arrive together; share one refresh.
+    let pending = verificationRefreshes.get(user);
+    if (!pending) {
+      pending = (async () => { await reload(user); await user.getIdToken(true); })();
+      verificationRefreshes.set(user, pending);
+    }
+    try { await pending; }
+    finally { if (verificationRefreshes.get(user) === pending) verificationRefreshes.delete(user); }
+  }
   return verificationAccess(user, (await user.getIdTokenResult()).claims);
 }
 export async function refreshVerification(user) {
   const access = await getVerificationAccess(user, true);
-  if (access === 'ready') await syncActivity(user).catch(reportTrackingError);
+  // Analytics must never keep a successfully verified account behind the dialog.
+  if (access === 'ready') void syncActivity(user).catch(reportTrackingError);
   return access === 'ready';
 }
 export const sendVerificationEmail = user => sendEmailVerification(user, {

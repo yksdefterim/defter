@@ -33,14 +33,17 @@ verifyButton.addEventListener('click', async () => {
   if (!auth.currentUser) return;
   const user = auth.currentUser;
   try {
-    if (await openVerificationDialog(user, { autoSend: true }) === 'verified') await destination(user);
+    if (await openVerificationDialog(user) === 'verified') await destination(user, 'E-postan doğrulandı. Hoş geldin!', true);
   } catch (error) { $('authError').textContent = errorMessage(error); $('authError').hidden = false; }
 });
 async function destination(user, message, explicitLogin = false) {
   const profile = await ensureProfile(user);
+  if (auth.currentUser?.uid !== user.uid) return;
   if (profile.status !== 'active') { await logoutUser(); throw new Error('Bu hesap dondurulmuş. Yöneticiyle iletişime geç.'); }
   if (admin && !(await user.getIdTokenResult(true)).claims.admin) { await logoutUser(); throw new Error('Bu hesapta yönetici yetkisi bulunmuyor.'); }
-  if (await getVerificationAccess(user, true) === 'pending') {
+  const access = await getVerificationAccess(user, true);
+  if (auth.currentUser?.uid !== user.uid) return;
+  if (access === 'pending') {
     showAuth('login');
     $('authError').textContent = 'E-posta onayın bekleniyor. Giriş yapmak için lütfen e-postandaki bağlantıyı onayla.';
     $('authError').hidden = false; verifyButton.hidden = false;
@@ -54,6 +57,7 @@ async function destination(user, message, explicitLogin = false) {
 async function submit(form, operation) {
   if (busy || !form.reportValidity()) return;
   busy = true; const button = form.querySelector('[type=submit]'); button.disabled = true;
+  verifyButton.hidden = true;
   $('authError').hidden = true;
   try { await operation(); }
   catch (error) { $('authError').textContent = errorMessage(error); $('authError').hidden = false; showToast(errorMessage(error), 'error'); }
@@ -71,6 +75,7 @@ $('registerForm')?.addEventListener('submit', e => {
     if (name.split(' ').length < 2) throw new Error('Adını ve soyadını birlikte gir.');
     const user = await registerUser(name, $('registerEmail').value.trim(), $('registerPassword').value, $('registerAlan').value);
     const result = await openVerificationDialog(user, { autoSend: true });
+    if (result === 'signed-out' || auth.currentUser?.uid !== user.uid) return;
     await logoutUser();
     showAuth('login'); $('loginEmail').value = user.email;
     verifyButton.hidden = true;

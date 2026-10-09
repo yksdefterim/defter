@@ -66,3 +66,6 @@ body{background-image:radial-gradient(#3e4c3910 .65px,transparent .65px);backgro
 @keyframes verification-spin{to{transform:rotate(360deg)}}
 @media(max-width:480px){.verification-dialog{padding:24px}.verification-dialog h2{font-size:1.4rem}.email-action-card h1{font-size:1.9rem}.email-action-card input{font-size:16px}}
 @media(prefers-reduced-motion:reduce){.verification-spinner{animation-duration:2s}}
+
+.verification-connection{background:#f5ecd7;border:1px solid #ddc99f;border-radius:10px;padding:12px 14px;color:#71562c!important}
+.verification-dialog .eyebrow{font-size:.66rem;letter-spacing:.12em}.verification-dialog .verification-actions{grid-template-columns:1fr;gap:8px}.verification-dialog .verification-check{font-size:.8rem}.verification-dialog .verification-exit{font-size:.74rem;color:#697768;padding:8px}.verification-dialog .verification-tip{margin:16px 0;padding:13px 15px}.verification-dialog .verification-footnote{margin-top:16px!important}.verification-dialog button:focus-visible{outline:3px solid #71a28d;outline-offset:3px}.verification-dialog .verification-send:disabled{cursor:default;box-shadow:0 2px 0 #b3c4b4;opacity:.7}

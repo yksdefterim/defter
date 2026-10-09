@@ -2,6 +2,7 @@ import { auth, getVerificationAccess, refreshVerification, sendVerificationEmail
 import { confirmLogout } from './controls.js';
 
 let currentDialog;
+let currentUserId, closeCurrentDialog;
 const deadlines = new Map();
 const keyFor = user => `defter-verification-resend:${user.uid}`;
 function deadline(user) {
@@ -25,7 +26,10 @@ export function verificationError(error) {
 }
 
 export function openVerificationDialog(user, { blocking = false, autoSend = false } = {}) {
-  if (currentDialog) return currentDialog;
+  if (auth.currentUser?.uid !== user.uid) return Promise.resolve('signed-out');
+  if (currentDialog && currentUserId === user.uid) return currentDialog;
+  closeCurrentDialog?.('signed-out');
+  currentUserId = user.uid;
   currentDialog = new Promise(resolve => {
     const dialog = document.createElement('dialog');
     dialog.className = 'logout-dialog verification-dialog';
@@ -37,10 +41,23 @@ export function openVerificationDialog(user, { blocking = false, autoSend = fals
     const sendButton = find('.verification-send'), checkButton = find('.verification-check');
     const status = find('.verification-status'), error = find('.verification-error');
     let sending = false, checking = false, closed = false, lastCheck = 0, sent = deadline(user) > Date.now();
+    if (sent) status.textContent = 'Yakın zamanda bir gönderim isteği yapıldı. E-postanı kontrol edebilir veya sayaç bitince yeniden deneyebilirsin.';
+    const connection = document.createElement('p');
+    connection.className = 'verification-connection'; connection.setAttribute('role', 'status');
+    status.before(connection);
     function tick() {
+      if (closed) return;
+      if (auth.currentUser?.uid !== user.uid) { finish('signed-out'); return; }
       const seconds = Math.max(0, Math.ceil((deadline(user) - Date.now()) / 1000));
-      sendButton.disabled = sending || seconds > 0;
+      const offline = navigator.onLine === false;
+      connection.textContent = offline ? 'İnternet bağlantısı yok. Bağlantı geldiğinde doğrulama kontrolü devam edecek.' : '';
+      connection.hidden = !offline;
+      sendButton.disabled = sending || checking || seconds > 0 || offline;
+      checkButton.disabled = sending || checking || offline;
+      checkButton.textContent = checking ? 'Kontrol ediliyor…' : 'Doğruladım, kontrol et';
+      dialog.setAttribute('aria-busy', String(sending || checking));
       if (find('.verification-done')) find('.verification-done').disabled = sending;
+      if (find('.verification-exit')) find('.verification-exit').disabled = sending;
       sendButton.textContent = sending ? 'Gönderiliyor…' : seconds > 0 ? `Tekrar gönder (${seconds} sn)` : sent ? 'Tekrar gönder' : 'Doğrulama e-postası gönder';
     }
     function finish(result) {
@@ -48,33 +65,44 @@ export function openVerificationDialog(user, { blocking = false, autoSend = fals
       clearInterval(ticker); clearInterval(poller);
       window.removeEventListener('focus', onFocus); document.removeEventListener('visibilitychange', onFocus);
       window.removeEventListener('storage', tick);
-      dialog.close(); dialog.remove(); currentDialog = null; resolve(result);
+      window.removeEventListener('online', onFocus); window.removeEventListener('offline', tick);
+      dialog.close(); dialog.remove(); currentDialog = null; currentUserId = null; closeCurrentDialog = null; resolve(result);
     }
+    closeCurrentDialog = finish;
     async function check(manual = false) {
-      if (closed || checking || auth.currentUser?.uid !== user.uid) return;
+      if (closed || checking || sending || navigator.onLine === false || auth.currentUser?.uid !== user.uid) return;
       if (!manual && (document.hidden || Date.now() - lastCheck < 4000)) return;
-      checking = true; lastCheck = Date.now(); checkButton.disabled = true;
+      checking = true; lastCheck = Date.now(); tick();
       try {
-        if (await refreshVerification(user)) { finish('verified'); return; }
+        const verified = await refreshVerification(user);
+        if (closed || auth.currentUser?.uid !== user.uid) return;
+        if (verified) { finish('verified'); return; }
+        error.hidden = true;
         if (manual) { status.textContent = 'Henüz doğrulama görünmüyor. E-postandaki bağlantıya tıklayıp yeniden kontrol et.'; error.hidden = true; }
-      } catch (err) { if (manual) { error.textContent = verificationError(err); error.hidden = false; } }
-      finally { checking = false; checkButton.disabled = false; }
+      } catch (err) { if (!closed) { error.textContent = verificationError(err); error.hidden = false; } }
+      finally { checking = false; tick(); }
     }
     async function send() {
-      if (sending || closed) return;
+      if (sending || checking || closed || navigator.onLine === false) return;
+      sending = true; tick();
       const execute = async () => {
-        if (closed || deadline(user) > Date.now()) { tick(); return; }
-        sending = true; beginCooldown(user); tick(); error.hidden = true;
+        if (closed || auth.currentUser?.uid !== user.uid || deadline(user) > Date.now()) return;
+        beginCooldown(user); tick(); error.hidden = true;
         try {
           if (await getVerificationAccess(user, true) === 'ready') { await refreshVerification(user); finish('verified'); return; }
+          if (closed || auth.currentUser?.uid !== user.uid) return;
           await sendVerificationEmail(user);
+          if (closed) return;
           sent = true; status.textContent = 'Doğrulama bağlantısı gönderildi. Giriş yapmak için e-postandaki bağlantıyı onayla.';
+          find('#verificationTitle').textContent = 'E-postanı kontrol et';
         } catch (err) { error.textContent = verificationError(err); error.hidden = false; status.textContent = 'Yeni bir doğrulama e-postası gönderilemedi.'; }
-        finally { sending = false; tick(); }
       };
-      if (navigator.locks?.request) await navigator.locks.request(keyFor(user), execute); else await execute();
+      try {
+        if (navigator.locks?.request) await navigator.locks.request(keyFor(user), execute); else await execute();
+      } catch (err) { if (!closed) { error.textContent = verificationError(err); error.hidden = false; } }
+      finally { sending = false; tick(); }
     }
-    function onFocus() { void check(); }
+    function onFocus() { tick(); if (!document.hidden) { lastCheck = 0; void check(); } }
     dialog.addEventListener('cancel', event => { event.preventDefault(); if (!blocking && !sending) finish('dismissed'); });
     sendButton.addEventListener('click', () => { void send(); });
     checkButton.addEventListener('click', () => { void check(true); });
@@ -86,6 +114,7 @@ export function openVerificationDialog(user, { blocking = false, autoSend = fals
     });
     const ticker = setInterval(tick, 250), poller = setInterval(() => { void check(); }, 5000);
     window.addEventListener('focus', onFocus); document.addEventListener('visibilitychange', onFocus); window.addEventListener('storage', tick);
+    window.addEventListener('online', onFocus); window.addEventListener('offline', tick);
     document.body.append(dialog); dialog.showModal(); tick();
     if (autoSend) void send();
   });

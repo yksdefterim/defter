@@ -107,8 +107,9 @@ export function requireUser(callback, admin = false) {
       if (admin && !(await user.getIdTokenResult(true)).claims.admin) { await logoutUser(); flash('Bu hesapta yönetici yetkisi bulunmuyor.'); location.replace('adgiris.html'); return; }
       await ensureProfile(user);
       const access = await getVerificationAccess(user, true);
-      if (access === 'pending') { location.replace('index.html#giris'); return; }
       if (current !== generation) return;
+      if (access === 'pending') { location.replace('index.html#giris'); return; }
+      let verificationGate = false;
       unsubscribe = onSnapshot(doc(db, 'users', user.uid), async snapshot => {
         if (current !== generation) return;
         const profile = snapshot.data();
@@ -116,8 +117,9 @@ export function requireUser(callback, admin = false) {
         $('sessionLoading').hidden = true;
         $('appShell').hidden = false;
         renderIdentity(user, profile); callback(user, profile);
-        if (access !== 'ready' && !user.emailVerified) {
-          if (await openVerificationDialog(user, { blocking: true }) === 'verified') showToast('E-posta adresin doğrulandı. Devam edebilirsin.', 'success');
+        if (access !== 'ready' && !user.emailVerified && !verificationGate) {
+          verificationGate = true;
+          if (await openVerificationDialog(user, { blocking: true }) === 'verified' && current === generation) showToast('E-posta adresin doğrulandı. Devam edebilirsin.', 'success');
         }
       }, error => sessionError(error));
     } catch (error) { sessionError(error); }
