@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer">
+  <title>E-posta doğrulama — Defter</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="updates.css"><link rel="stylesheet" href="design.css?v=20261009-2">
+</head>
+<body class="email-action-page">
+  <main class="email-action-card" aria-labelledby="actionTitle">
+    <a class="email-action-brand" href="index.html"><img src="favicon.svg" width="32" height="32" alt="">Defter</a>
+    <div id="actionSymbol" class="verification-symbol" aria-hidden="true"><span class="verification-spinner"></span></div>
+    <span class="eyebrow">GÜVENLİ HESAP İŞLEMİ</span>
+    <h1 id="actionTitle">Bağlantın doğrulanıyor</h1>
+    <p id="actionMessage" role="status" aria-live="polite">Lütfen bekle. Bağlantını Firebase ile kontrol ediyoruz.</p>
+    <form id="resetForm" hidden>
+      <label for="newPassword">Yeni şifre</label>
+      <input id="newPassword" type="password" autocomplete="new-password" minlength="6" required placeholder="En az 6 karakter">
+      <label for="confirmPassword">Yeni şifre (tekrar)</label>
+      <input id="confirmPassword" type="password" autocomplete="new-password" minlength="6" required>
+      <p id="resetError" class="verification-error" role="alert" hidden></p>
+      <button class="btn-neo btn-neo--primary" type="submit">Şifreyi kaydet</button>
+    </form>
+    <a id="actionLogin" class="btn-neo btn-neo--primary" href="index.html#giris" hidden>Giriş yap</a>
+    <p class="verification-footnote">Defter hesabın için güvenli doğrulama.<br>Bu sayfada e-posta şifreni istemeyiz.</p>
+    <noscript>Doğrulama için tarayıcında JavaScript’i etkinleştirip sayfayı yeniden aç.</noscript>
+  </main>
+  <script type="module" src="email-action.js"></script>
+</body>
+</html>

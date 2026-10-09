@@ -2,6 +2,8 @@ import { auth, db, doc, onSnapshot, ensureProfile, watchAuthState, logoutUser, t
 import { getFunctions, httpsCallable, connectFunctionsEmulator } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-functions.js';
 import { firebaseApp, useEmulators } from './firebase-config.js';
 import { confirmLogout } from './controls.js';
+import { getVerificationAccess } from './firebase-config.js';
+import { openVerificationDialog } from './verification.js';
 
 let loggingOut = false;
 
@@ -93,6 +95,9 @@ export function renderIdentity(user, profile) {
   if ($('userAvatarInitial')) $('userAvatarInitial').textContent = (profile.name || 'Ö').charAt(0).toLocaleUpperCase('tr');
 }
 export function requireUser(callback, admin = false) {
+  window.addEventListener('defter-verification-required', () => {
+    if (auth.currentUser) void openVerificationDialog(auth.currentUser, { blocking: true });
+  });
   let unsubscribe, generation = 0;
   watchAuthState(async user => {
     const current = ++generation;
@@ -101,6 +106,8 @@ export function requireUser(callback, admin = false) {
     try {
       if (admin && !(await user.getIdTokenResult(true)).claims.admin) { await logoutUser(); flash('Bu hesapta yönetici yetkisi bulunmuyor.'); location.replace('adgiris.html'); return; }
       await ensureProfile(user);
+      const access = await getVerificationAccess(user, true);
+      if (access === 'pending') { location.replace('index.html#giris'); return; }
       if (current !== generation) return;
       unsubscribe = onSnapshot(doc(db, 'users', user.uid), async snapshot => {
         if (current !== generation) return;
@@ -109,6 +116,9 @@ export function requireUser(callback, admin = false) {
         $('sessionLoading').hidden = true;
         $('appShell').hidden = false;
         renderIdentity(user, profile); callback(user, profile);
+        if (access !== 'ready' && !user.emailVerified) {
+          if (await openVerificationDialog(user, { blocking: true }) === 'verified') showToast('E-posta adresin doğrulandı. Devam edebilirsin.', 'success');
+        }
       }, error => sessionError(error));
     } catch (error) { sessionError(error); }
   });

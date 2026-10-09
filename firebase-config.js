@@ -14,6 +14,8 @@ import {
   setPersistence, browserLocalPersistence, browserSessionPersistence,
   sendPasswordResetEmail, EmailAuthProvider, reauthenticateWithCredential, updatePassword,
   connectAuthEmulator,
+  sendEmailVerification, reload, applyActionCode, checkActionCode,
+  verifyPasswordResetCode, confirmPasswordReset,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import {
   getFirestore,
@@ -28,6 +30,7 @@ import {
   getDoc, getDocs, setDoc, runTransaction,
   connectFirestoreEmulator,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { SITE_URL, verificationAccess } from './auth-policy.js';
 
 const firebaseConfig = {
   apiKey: "AIzaSyC3-iXxt6n4UPi_2pbJb1yAoCWtlY-2jUU",
@@ -45,12 +48,35 @@ if (local && emulatorOption !== null) sessionStorage.setItem('defter-emulator', 
 export const useEmulators = local && sessionStorage.getItem('defter-emulator') === '1';
 export const firebaseApp = initializeApp(useEmulators ? { apiKey: 'demo-key', projectId: 'demo-defter', authDomain: 'demo-defter.firebaseapp.com' } : firebaseConfig);
 export const auth = getAuth(firebaseApp);
+auth.languageCode = 'tr';
 export const db = getFirestore(firebaseApp);
 if (useEmulators) {
   connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
   connectFirestoreEmulator(db, '127.0.0.1', 8080);
 }
 export { doc, collection, onSnapshot, getDoc, updateDoc, serverTimestamp, query, getDocs, setDoc, runTransaction };
+export { applyActionCode, checkActionCode, verifyPasswordResetCode, confirmPasswordReset };
+
+export async function getVerificationAccess(user, refresh = false) {
+  if (refresh) { await reload(user); await user.getIdToken(true); }
+  return verificationAccess(user, (await user.getIdTokenResult()).claims);
+}
+export async function refreshVerification(user) {
+  const access = await getVerificationAccess(user, true);
+  if (access === 'ready') await syncActivity(user).catch(reportTrackingError);
+  return access === 'ready';
+}
+export const sendVerificationEmail = user => sendEmailVerification(user, {
+  url: SITE_URL + 'index.html#giris', handleCodeInApp: false,
+});
+async function requireVerifiedForWrite() {
+  if (!auth.currentUser || await getVerificationAccess(auth.currentUser) !== 'ready') {
+    const error = new Error('Deneme işlemleri için önce e-posta adresini doğrulamalısın.');
+    error.code = 'auth/email-not-verified';
+    window.dispatchEvent(new CustomEvent('defter-verification-required'));
+    throw error;
+  }
+}
 
 export async function ensureProfile(user, initial = {}) {
   const ref = doc(db, 'users', user.uid);
@@ -113,6 +139,7 @@ function denemelerRef(userId) {
 }
 
 export async function addDeneme(userId, denemeData) {
+  await requireVerifiedForWrite();
   const ref = denemelerRef(userId);
   const docRef = await addDoc(ref, {
     ...denemeData,
@@ -122,11 +149,13 @@ export async function addDeneme(userId, denemeData) {
   return docRef.id;
 }
 
-export function deleteDeneme(userId, denemeId) {
+export async function deleteDeneme(userId, denemeId) {
+  await requireVerifiedForWrite();
   return deleteDoc(doc(db, "users", userId, "denemeler", denemeId));
 }
 
-export function updateDenemeAiNote(userId, denemeId, aiAnalizNotu) {
+export async function updateDenemeAiNote(userId, denemeId, aiAnalizNotu) {
+  await requireVerifiedForWrite();
   return updateDoc(doc(db, "users", userId, "denemeler", denemeId), { aiAnalizNotu });
 }
 
@@ -155,12 +184,13 @@ export function reportTrackingError(error) {
 export async function syncActivity(user, profile = null, exams = null) {
   profile ||= (await getDoc(doc(db, 'users', user.uid))).data();
   if (!profile || profile.status !== 'active') return;
-  const isAdmin = Boolean((await user.getIdTokenResult()).claims.admin);
+  const claims = (await user.getIdTokenResult()).claims;
+  const isAdmin = claims.admin === true;
   if (!exams) exams = (await getDocs(collection(db, 'users', user.uid, 'denemeler'))).docs.map(d => d.data());
   const times = exams.map(e => e.olusturmaZamani).filter(t => t?.toMillis).sort((a,b) => a.toMillis() - b.toMillis());
   await setDoc(doc(db, 'userActivity', user.uid), {
     name: profile.name, email: profile.email, status: profile.status,
-    createdAt: profile.createdAt, admin: isAdmin, examCount: exams.length,
+    createdAt: profile.createdAt, admin: isAdmin, emailVerified: claims.email_verified === true, examCount: exams.length,
     firstExamAt: times[0] || null, lastExamAt: times.at(-1) || null,
   }, { merge: true });
 }
