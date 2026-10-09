@@ -27,7 +27,7 @@ import {
   onSnapshot,
   query,
   serverTimestamp,
-  getDoc, getDocs, setDoc, runTransaction,
+  getDoc, getDocs, setDoc, runTransaction, writeBatch,
   connectFirestoreEmulator,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { SITE_URL, verificationAccess } from './auth-policy.js';
@@ -220,4 +220,14 @@ export async function trackActivity(kind, action) {
       if (saved.exists() && !saved.data().firstAction) tx.update(ref, { firstAction: action });
     });
   }
+}
+
+// Only status is changed here. Authentication deletion and role changes require Admin SDK.
+export async function setAccountStatus(uid, status) {
+  if (!['active', 'frozen'].includes(status) || !auth.currentUser || uid === auth.currentUser.uid) throw new Error('Geçersiz yönetim işlemi.');
+  await auth.currentUser.getIdToken(true);
+  const batch = writeBatch(db);
+  batch.update(doc(db, 'users', uid), { status });
+  batch.update(doc(db, 'userActivity', uid), { status });
+  await batch.commit();
 }
